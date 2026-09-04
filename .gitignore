@@ -1,0 +1,10 @@
+.DS_Store
+.env
+.env.*
+*.pem
+kaitan/node_modules/
+kaitan/.next/
+kaitan/out/
+kaitan/.vercel/
+kaitan/*.tsbuildinfo
+kaitan/next-env.d.ts
