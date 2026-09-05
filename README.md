@@ -7,7 +7,6 @@
 ## 自己跑
 
 ```bash
-cd kaitan
 npm install
 npm run dev
 ```
@@ -23,5 +22,3 @@ npm run dev
 ## 给小伙伴看
 
 线上原型：https://kaitan-blush.vercel.app
-
-Next 应用在 `kaitan/`。仓库根目录有一份给 Vercel 用的适配（`package.json`、`src` → `kaitan/src`），导入仓库后不用再改 Root Directory。若仍 404：Vercel → Settings → General → Root Directory 填 `kaitan`，Redeploy。
