@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Btn, Card, CardHead, Cell, Empty, Page } from "@/components/mp";
+import { Btn, Card, CardHead, Cell, Empty, Lamp, Page } from "@/components/mp";
 import { useStore } from "@/lib/store";
 import { canLeaveReview } from "@/lib/lot";
 import {
@@ -82,7 +82,9 @@ export default function StallPage() {
         <img src={stallCover(stall)} alt="" />
         <span className="stall-plaque">{booth?.slotNo ?? "—"}</span>
         <span className="stamp stall-poster-stamp">{stallPayLabel(stall)}</span>
-        <span className={`booth-state is-${state}`}>{BOOTH_STATE_LABEL[state]}</span>
+        <span className={`booth-state is-${state}`}>
+          <Lamp state={state} /> {BOOTH_STATE_LABEL[state]}
+        </span>
       </div>
       <header className="px-0.5 pt-3">
         <p className="text-[11px] tracking-[0.18em] text-[var(--lacquer)]">{stall.category}</p>
@@ -104,16 +106,16 @@ export default function StallPage() {
         </Card>
       )}
       <Card>
+        <CardHead>今晚菜单 · 一单一摊 · 到摊取</CardHead>
         {menu.length === 0 ? (
           <Empty>今晚菜单还没写上。</Empty>
         ) : (
           menu.map((d) => (
-            <div key={d.id} className="dish-row">
-              <img src={dishPhoto(d)} alt="" />
-              <div className="min-w-0 flex-1">
-                <p>{d.name}</p>
-                <p className="text-[13px] text-[var(--muted)]">{d.priceYuan} 元</p>
-              </div>
+            <div key={d.id} className="receipt-row">
+              <img src={dishPhoto(d)} alt="" className="cell-thumb" />
+              <span className="receipt-name">{d.name}</span>
+              <span className="receipt-dots" />
+              <span className="receipt-price">{d.priceYuan} 元</span>
               {canOrder ? (
                 <span className="mp-step">
                   <button type="button" onClick={() => bump(d.id, -1)} aria-label="减">
@@ -127,6 +129,17 @@ export default function StallPage() {
               ) : null}
             </div>
           ))
+        )}
+        {canOrder && menu.length > 0 && (
+          <div className="receipt-foot">
+            <div>
+              <p className="text-[13px] text-[var(--muted)]">合计 · 到摊取不配送</p>
+              <p className="font-display text-2xl leading-none">{total} 元</p>
+            </div>
+            <Btn kind="lacquer" disabled={picks.length === 0 || submitting} onClick={submit}>
+              {submitting ? "下单中" : "下单"}
+            </Btn>
+          </div>
         )}
       </Card>
       <Card>
@@ -205,17 +218,7 @@ export default function StallPage() {
             ))
         )}
       </Card>
-      {canOrder ? (
-        <div className="ticket flex items-center justify-between gap-3 px-3.5 py-3">
-          <div>
-            <p className="text-[13px] text-[var(--muted)]">一单一摊 · 到摊取</p>
-            <p className="font-display text-2xl leading-none">{total} 元</p>
-          </div>
-          <Btn kind="lacquer" disabled={picks.length === 0 || submitting} onClick={submit}>
-            {submitting ? "下单中" : "下单"}
-          </Btn>
-        </div>
-      ) : (
+      {canOrder ? null : (
         <Card>
           <Cell>
             <p className="text-[13px] leading-relaxed text-[var(--muted)]">

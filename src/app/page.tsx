@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Btn, Card, Cell, Empty, Lead, LotMap, Page, StallPoster, Stats } from "@/components/mp";
+import { Band, Btn, Card, Cell, Empty, FloorBand, Lead, Page, StallPoster, Stats } from "@/components/mp";
 import { useStore } from "@/lib/store";
 import {
   BOOTH_STATE_LABEL,
@@ -70,14 +70,14 @@ export default function Home() {
       />
       {!venue.closedToday && (
         <Card>
-          <p className="px-3.5 pt-3 text-[13px] text-[var(--muted)]">今晚摊位 · 对着场图找</p>
-          <LotMap
+          <FloorBand
             floor={venue.floor}
             hrefFor={(id) => `/stall/${id}`}
             booths={booths.map(({ stall, slotNo, plot }) => ({
               slotNo,
               cover: stallCover(stall),
               name: stall.vendorName,
+              state: boothState(stall),
               stallId: stall.id,
               plotId: plot?.id || stall.lotPlotId,
             }))}
@@ -125,13 +125,13 @@ export default function Home() {
         <>
           {orderable.length > 0 && (
             <>
-              <p className="section-kicker">已开摊 · 可点单 · 到摊取</p>
+              <Band title="已开摊 · 可点单" note="到摊取" count={orderable.length} />
               {posters(orderable)}
             </>
           )}
           {walkup.length > 0 && (
             <>
-              <p className="section-kicker">已开摊 · 到摊看 · 到摊付</p>
+              <Band title="已开摊 · 到摊付" note="到摊看了再买" count={walkup.length} />
               {posters(walkup)}
             </>
           )}
@@ -142,13 +142,13 @@ export default function Home() {
           )}
           {waiting.length > 0 && (
             <div className="is-dim">
-              <p className="section-kicker">还没开摊 · 报了名，人还没到</p>
+              <Band title="还没开摊" note="报了名，人还没到" count={waiting.length} />
               {posters(waiting)}
             </div>
           )}
           {packed.length > 0 && (
             <div className="is-dim">
-              <p className="section-kicker">已收摊 · 今晚别白跑</p>
+              <Band title="已收摊" note="今晚别白跑" count={packed.length} />
               {posters(packed)}
             </div>
           )}

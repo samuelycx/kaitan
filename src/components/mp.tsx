@@ -91,6 +91,84 @@ export function Btn({
   return <button type="button" className={`mp-btn mp-btn-${kind} ${className}`} {...props} />;
 }
 
+/**
+ * 到场状态，一盏灯。摊主到没到场是顾客白跑一趟与否的分界，
+ * 所以它不藏在文字里：亮灯是人已经站在摊后，空框是报了名还没到，灰的是收了摊。
+ */
+export function Lamp({ state }: { state: string }) {
+  return <i className={`lamp is-${state}`} aria-hidden />;
+}
+
+/** 一段的抬头。名单分三段，每段自己说清楚这一段的摊是什么状态。 */
+export function Band({ title, note, count }: { title: string; note?: string; count?: number }) {
+  return (
+    <div className="band">
+      <h3>{title}</h3>
+      {note && <small>{note}</small>}
+      {count !== undefined && <span className="band-count">{count}</span>}
+    </div>
+  );
+}
+
+/**
+ * 场图收成一条横带，从场口往里排。顾客先看名单挑摊，再顺着这条带子
+ * 找位置，所以它不该占掉半屏——一眼扫过去知道哪几格亮着就够了。
+ */
+export function FloorBand({
+  floor,
+  booths,
+  hrefFor,
+  highlightId,
+}: {
+  floor?: VenueFloor;
+  booths: { slotNo: string; cover: string; name: string; state: string; stallId?: string; plotId?: string }[];
+  hrefFor?: (stallId: string) => string;
+  highlightId?: string;
+}) {
+  if (!floor?.plots.length) return null;
+  const byPlot = new Map(booths.map((row) => [row.plotId || "", row]));
+  const taken = booths.filter((row) => row.state === "open").length;
+  // Laid out by plot number, which is the order the numbers are painted on the
+  // ground — reading the strip is then the same walk as walking in from the gate.
+  const plots = [...floor.plots].sort((a, b) => a.no.localeCompare(b.no));
+  return (
+    <div className="floor-band">
+      <div className="floor-band-head">
+        <span>场图 · {floor.gate.label}从这边进</span>
+        <span>亮着 {taken} 格</span>
+      </div>
+      <div className="floor-band-rail">
+        {plots.map((plot) => {
+          const booth = byPlot.get(plot.id);
+          const href = booth?.stallId && hrefFor ? hrefFor(booth.stallId) : undefined;
+          const mine = Boolean(booth && highlightId && booth.stallId === highlightId);
+          const cls = `floor-cell${booth ? ` is-${booth.state}` : " is-empty"}${mine ? " is-me" : ""}`;
+          const inner = (
+            <>
+              {booth ? <img src={booth.cover} alt="" /> : <span className="floor-cell-blank" />}
+              {booth && <Lamp state={booth.state} />}
+              <span className="floor-cell-no">{plot.no}</span>
+              <span className="floor-cell-name">{booth ? booth.name : plotUseLabel(plot.use)}</span>
+            </>
+          );
+          if (href) {
+            return (
+              <Link key={plot.id} href={href} className={cls}>
+                {inner}
+              </Link>
+            );
+          }
+          return (
+            <div key={plot.id} className={cls}>
+              {inner}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function LotMap({
   floor,
   booths,
@@ -204,7 +282,9 @@ export function StallPoster({
       </div>
       <div className="stall-poster-body">
         <p className="stall-poster-cat">{category}</p>
-        <h3>{name}</h3>
+        <h3>
+          {stateKind && <Lamp state={stateKind} />} {name}
+        </h3>
         {rating && <p className="stall-poster-rate">{rating}</p>}
         {blurb && <p className="stall-poster-blurb">{blurb}</p>}
         {dishes.length > 0 && (

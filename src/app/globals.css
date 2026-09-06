@@ -738,7 +738,7 @@ body {
 /* Whether a stall is actually standing there right now. Sign-up is not arrival. */
 .booth-state {
   position: absolute;
-  left: 12px;
+  right: 12px;
   bottom: 12px;
   padding: 0.12rem 0.45rem;
   font-size: 0.7rem;
@@ -763,4 +763,243 @@ body {
 
 .is-dim {
   opacity: 0.62;
+}
+
+/*
+ * 顾客端 1a：名单在前，场图收成一条横带，点单像一张票，取餐号是墨底大字。
+ * 贯穿这几屏的是同一件事——摊主到没到场，是第一眼要看见的信息，
+ * 所以到场状态在这里是一盏灯：亮灯实心朱红，备摊空框，不出灰的。
+ */
+
+.lamp {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--muted);
+  border-radius: 50%;
+  background: transparent;
+  vertical-align: baseline;
+}
+
+.lamp.is-open {
+  border-color: var(--lacquer);
+  background: var(--lacquer);
+}
+
+.lamp.is-waiting {
+  border-color: var(--ink);
+  background: transparent;
+}
+
+.lamp.is-packed {
+  border-color: color-mix(in srgb, var(--ink) 30%, transparent);
+  background: color-mix(in srgb, var(--ink) 22%, transparent);
+}
+
+/* 三段之间不是留白，是切开：每段自报家门，说清这一段的摊是什么状态。 */
+.band {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 1.15rem 0 0.5rem;
+  padding: 0 0.2rem 0.3rem;
+  border-bottom: 1.5px solid color-mix(in srgb, var(--ink) 78%, transparent);
+}
+
+.band h3 {
+  margin: 0;
+  font-family: var(--font-display), "Noto Serif SC", serif;
+  font-size: 1.02rem;
+  line-height: 1;
+}
+
+.band small {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+.band .band-count {
+  margin-left: auto;
+  font-family: var(--font-display), "Noto Serif SC", serif;
+  font-size: 1.02rem;
+  line-height: 1;
+  color: var(--lacquer);
+}
+
+/* 场图不再占半屏：横着一条，从场口往里排，点一格就是那个摊。 */
+.floor-band {
+  padding: 0.5rem 0 0.55rem;
+}
+
+.floor-band-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 0.9rem 0.45rem;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+.floor-band-rail {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 0 0.9rem 0.15rem;
+  scrollbar-width: none;
+}
+
+.floor-band-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.floor-cell {
+  position: relative;
+  flex: 0 0 auto;
+  width: 58px;
+  padding: 0.3rem 0.3rem 0.35rem;
+  border: 1.5px solid color-mix(in srgb, var(--ink) 26%, transparent);
+  background: color-mix(in srgb, var(--paper) 70%, white);
+  color: inherit;
+  text-decoration: none;
+  text-align: center;
+}
+
+.floor-cell img {
+  display: block;
+  width: 100%;
+  height: 30px;
+  object-fit: cover;
+}
+
+.floor-cell .floor-cell-no {
+  display: block;
+  font-family: var(--font-display), "Noto Serif SC", serif;
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.floor-cell .floor-cell-name {
+  display: block;
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 1.3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--muted);
+}
+
+.floor-cell.is-open {
+  border-color: var(--lacquer);
+}
+
+.floor-cell.is-empty .floor-cell-name {
+  color: color-mix(in srgb, var(--ink) 38%, transparent);
+}
+
+.floor-cell .lamp {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+}
+
+/* 点单这一屏是一张票：菜名在左，价钱在右，中间用点连起来。 */
+.receipt-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+}
+
+.receipt-row + .receipt-row {
+  border-top: 1px dashed color-mix(in srgb, var(--ink) 22%, transparent);
+}
+
+.receipt-row .receipt-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.receipt-row .receipt-dots {
+  flex: 1 1 auto;
+  min-width: 12px;
+  border-bottom: 1px dotted color-mix(in srgb, var(--ink) 35%, transparent);
+  transform: translateY(-3px);
+}
+
+.receipt-row .receipt-price {
+  flex: 0 0 auto;
+  font-family: var(--font-display), "Noto Serif SC", serif;
+  font-size: 0.98rem;
+}
+
+.receipt-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-top: 1.5px solid color-mix(in srgb, var(--ink) 78%, transparent);
+}
+
+/* 取餐号：墨底，大字，隔着摊子也认得出。 */
+.pickup-ticket {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.pickup-ticket img {
+  aspect-ratio: 16 / 5;
+  opacity: 0.55;
+}
+
+.pickup-ticket p {
+  color: color-mix(in srgb, var(--paper) 70%, transparent);
+}
+
+.pickup-ticket strong {
+  font-size: 5rem;
+  letter-spacing: 0.16em;
+  color: var(--paper);
+}
+
+.pickup-ticket .stamp {
+  border-color: color-mix(in srgb, var(--paper) 78%, transparent);
+  color: var(--paper);
+}
+
+.booth-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.floor-cell-blank {
+  display: block;
+  height: 30px;
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--ink) 7%, transparent) 0 4px,
+    transparent 4px 8px
+  );
+}
+
+.receipt-row .cell-thumb {
+  width: 44px;
+  height: 44px;
+}
+
+.receipt-row .mp-step {
+  gap: 0.3rem;
+}
+
+.receipt-row .mp-step button {
+  width: 24px;
+  height: 24px;
 }
