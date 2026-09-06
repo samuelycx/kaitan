@@ -49,6 +49,10 @@ export type Stall = {
   vendorName: string;
   category: string;
   fromStreet: string;
+  /** How the organizer reaches this vendor. Asked at registration, never shown to customers. */
+  phone: string;
+  /** When the vendor registered themselves, so the review queue is oldest-first. */
+  appliedAt: number;
   cover: string;
   blurb: string;
   status: TenancyStatus;
@@ -234,6 +238,11 @@ export function canTakeMiniOrder(stall: Stall) {
     stall.licenseTier === "ordering" &&
     !stall.orderingPaused
   );
+}
+
+/** A mainland mobile number, which is the only contact the organizer needs. */
+export function isPhone(text: string) {
+  return /^1[3-9]\d{9}$/.test(text.trim());
 }
 
 export function stallPayLabel(stall: Stall) {

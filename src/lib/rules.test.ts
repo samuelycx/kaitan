@@ -8,6 +8,8 @@ import {
   markNoShow,
   markOrder,
   openNextDay,
+  register,
+  reviewMany,
   refundOrder,
   setPlotPreference,
   signUp,
@@ -28,6 +30,8 @@ function stall(partial: Partial<Stall> & { id: string }): Stall {
     vendorName: partial.id,
     category: "小吃",
     fromStreet: "",
+    phone: "",
+    appliedAt: 0,
     cover: "",
     blurb: "",
     status: "active",
@@ -572,5 +576,67 @@ describe("管场对账", () => {
       record({ date: `2026-09-${String(i + 1).padStart(2, "0")}`, stallId: "a" }),
     );
     expect(occupancy(log, VENUE_ID)).toHaveLength(7);
+  });
+});
+
+describe("摊主自己登记", () => {
+  const empty = snapshot([]);
+  const form = { venueId: VENUE_ID, vendorName: "王姐烤面筋", phone: "13800138000", category: "小吃", fromStreet: "地铁 A 口" };
+
+  it("puts a new registration in the queue, not on the floor", () => {
+    const after = register(empty, form, 10, "s-new");
+    expect(after.stalls).toHaveLength(1);
+    expect(after.stalls[0]).toMatchObject({ status: "pending", phone: "13800138000", appliedAt: 10 });
+    expect(after.stalls[0].allottedToday).toBe(false);
+  });
+
+  it("hands the vendor app over to whoever just registered", () => {
+    expect(register(empty, form, 10, "s-new")).toMatchObject({ vendorId: "s-new", vendorName: "王姐烤面筋" });
+  });
+
+  it("refuses a registration with no usable phone number", () => {
+    expect(register(empty, { ...form, phone: "1380013" }, 10, "s-new").stalls).toHaveLength(0);
+    expect(register(empty, { ...form, phone: "" }, 10, "s-new").stalls).toHaveLength(0);
+  });
+
+  it("refuses a registration with no name", () => {
+    expect(register(empty, { ...form, vendorName: "  " }, 10, "s-new").stalls).toHaveLength(0);
+  });
+
+  it("does not let the same phone queue twice", () => {
+    const once = register(empty, form, 10, "s-new");
+    expect(register(once, { ...form, vendorName: "又填一遍" }, 20, "s-two").stalls).toHaveLength(1);
+  });
+
+  it("lets someone who was turned down register again", () => {
+    const turned = reviewMany(register(empty, form, 10, "s-new"), ["s-new"], "rejected");
+    expect(register(turned, form, 20, "s-two").stalls).toHaveLength(2);
+  });
+});
+
+describe("批量审核", () => {
+  function queued(ids: string[]) {
+    return snapshot(ids.map((id) => stall({ id, status: "pending" })));
+  }
+
+  it("approves a whole batch in one press", () => {
+    const after = reviewMany(queued(["a", "b", "c"]), ["a", "b"], "active");
+    expect(after.stalls.filter((row) => row.status === "active").map((row) => row.id)).toEqual(["a", "b"]);
+    expect(after.stalls.find((row) => row.id === "c")?.status).toBe("pending");
+  });
+
+  it("rejects a batch too", () => {
+    const after = reviewMany(queued(["a", "b"]), ["a", "b"], "rejected");
+    expect(after.stalls.every((row) => row.status === "rejected")).toBe(true);
+  });
+
+  it("leaves a vendor who is already in alone", () => {
+    const s = snapshot([stall({ id: "a", status: "active", allottedToday: true })]);
+    expect(reviewMany(s, ["a"], "rejected").stalls[0]).toMatchObject({ status: "active", allottedToday: true });
+  });
+
+  it("does nothing when nobody is selected", () => {
+    const s = queued(["a"]);
+    expect(reviewMany(s, [], "active")).toBe(s);
   });
 });

@@ -20,6 +20,8 @@ function stall(partial: {
     vendorName: partial.id,
     category: partial.category ?? "小吃",
     fromStreet: "",
+    phone: "",
+    appliedAt: 0,
     cover: "",
     blurb: "",
     status: partial.status ?? "active",

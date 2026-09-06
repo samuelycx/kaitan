@@ -43,8 +43,11 @@ type Store = Snapshot & {
   hydrated: boolean;
   role: Role;
   setRole: (role: Role) => void;
-  apply: (venueId: string, category: string, fromStreet: string) => void;
+  /** A vendor registering themselves from the link the organizer sent round. */
+  register: (form: rules.Registration) => void;
   review: (stallId: string, status: "active" | "rejected") => void;
+  /** Approve or reject a whole batch of registrations at once. */
+  reviewMany: (stallIds: string[], status: "active" | "rejected") => void;
   signUp: (stallId: string, plotId?: string, preference?: PlotPreference) => void;
   setPlotPreference: (stallId: string, preference: PlotPreference) => void;
   claimFreedPlot: (stallId: string, plotId: string) => void;
@@ -119,6 +122,8 @@ function load(): Snapshot {
             feePaidAt: row.feePaidAt ?? 0,
             arrivedToday: row.arrivedToday ?? false,
             packedUpToday: row.packedUpToday ?? false,
+            phone: row.phone ?? seeded?.phone ?? "",
+            appliedAt: row.appliedAt ?? seeded?.appliedAt ?? 0,
             noShowToday: row.noShowToday ?? false,
             plotPreference: row.plotPreference ?? "only",
             lastPlotId: row.lastPlotId ?? seeded?.lastPlotId ?? "",
@@ -184,36 +189,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       hydrated,
       role,
       setRole,
-      apply(venueId, category, fromStreet) {
-        if (snap.stalls.some((s) => s.venueId === venueId && s.vendorId === snap.vendorId)) return;
-        const row: Stall = {
-          id: newId("s"),
-          venueId,
-          vendorId: snap.vendorId,
-          vendorName: snap.vendorName,
-          category,
-          fromStreet,
-          cover: "",
-          blurb: "",
-          status: "pending",
-          compliant: false,
-          licenseTier: "display",
-          orderingRequested: false,
-          orderingPaused: false,
-          feePaidThisMonth: false,
-          feePaidAt: 0,
-          signedUpToday: false,
-          allottedToday: false,
-          arrivedToday: false,
-          packedUpToday: false,
-          noShowToday: false,
-          signedUpAt: 0,
-          lotSlot: 0,
-          lotPlotId: "",
-          plotPreference: "only",
-          lastPlotId: "",
-        };
-        setSnap((s) => ({ ...s, stalls: [...s.stalls, row] }));
+      register(form) {
+        setSnap((cur) => rules.register(cur, form, Date.now(), newId("s")));
+      },
+      reviewMany(stallIds, status) {
+        setSnap((cur) => {
+          const next = rules.reviewMany(cur, stallIds, status);
+          return next.venues.reduce(
+            (acc, venue) => ({ ...acc, stalls: allocate(acc.stalls, venue) }),
+            next,
+          );
+        });
       },
       review(stallId, status) {
         setSnap((s) => {

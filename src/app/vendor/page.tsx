@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 import { Btn, Card, CardHead, Cell, Empty, Lead, LotMap, Page, PaperHero } from "@/components/mp";
 import { plotUseLabel } from "@/lib/lot";
 import { useVendorDesk } from "@/lib/use-vendor";
-import { boothState, stallCover, tonightBooths, venueCover } from "@/lib/types";
+import { boothState, isPhone, stallCover, tonightBooths, venueCover } from "@/lib/types";
 
 export default function VendorSlotPage() {
   const {
@@ -13,7 +13,7 @@ export default function VendorSlotPage() {
     tenancy,
     stalls,
     signupOpen,
-    apply,
+    register,
     signUp,
     withdraw,
     markArrived,
@@ -23,13 +23,19 @@ export default function VendorSlotPage() {
   } = useVendorDesk();
   const [category, setCategory] = useState("小吃");
   const [fromStreet, setFromStreet] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   // The map only opens when the vendor wants a different plot from last time.
   const [picking, setPicking] = useState(false);
 
+  const canRegister = Boolean(name.trim()) && isPhone(phone) && Boolean(category.trim());
+
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!venue || !fromStreet.trim()) return;
-    apply(venue.id, category, fromStreet.trim());
+    if (!venue || !canRegister) return;
+    register({ venueId: venue.id, vendorName: name, phone, category, fromStreet });
+    setName("");
+    setPhone("");
     setFromStreet("");
   }
 
@@ -38,10 +44,37 @@ export default function VendorSlotPage() {
   if (!tenancy) {
     return (
       <Page>
-        <PaperHero src={venueCover(venue)} kicker="摊主" title={venue.name} note="把路边摊收到场内。进场后仍须每天报名占位。" />
-        <Lead title="申请进场">{venue.address}</Lead>
+        <PaperHero
+          src={venueCover(venue)}
+          kicker="摊主"
+          title={venue.name}
+          note="自己填，管场审。审过了才能每天报名占位。"
+        />
+        <Lead title="登记进场">
+          {venue.address} · 每天 {venue.open}–{venue.close} · 月管理费 {venue.feeYuanPerMonth} 元，线下交
+        </Lead>
         <Card>
           <form onSubmit={onSubmit} className="space-y-3 px-3.5 py-3">
+            <label className="block text-[13px]">
+              摊名
+              <input
+                className="mp-field mt-1"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="顾客看到的就是这个，例如：王姐烤面筋"
+              />
+            </label>
+            <label className="block text-[13px]">
+              手机号
+              <input
+                className="mp-field mt-1"
+                inputMode="numeric"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="管场联系你用，不给顾客看"
+              />
+              {phone && !isPhone(phone) && <span className="mt-1 block text-[var(--muted)]">手机号填满 11 位。</span>}
+            </label>
             <label className="block text-[13px]">
               品类
               <input className="mp-field mt-1" value={category} onChange={(e) => setCategory(e.target.value)} />
@@ -55,9 +88,12 @@ export default function VendorSlotPage() {
                 placeholder="例如：地铁 A 口、小区东门"
               />
             </label>
-            <Btn kind="lacquer" type="submit">
-              申请迁入
+            <Btn kind="lacquer" type="submit" disabled={!canRegister}>
+              交上去等审
             </Btn>
+            <p className="text-[13px] text-[var(--muted)]">
+              一个手机号只能登记一次。审过之前不用天天来看，结果会在这一页。
+            </p>
           </form>
         </Card>
       </Page>

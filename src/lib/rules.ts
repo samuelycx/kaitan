@@ -1,6 +1,6 @@
 import { claimPlots, findPlot, plotFits } from "./lot";
-import { cstDate, nextDate } from "./types";
-import type { DayRecord, OrderStatus, PlotPreference, Snapshot, Stall, Venue } from "./types";
+import { cstDate, isPhone, nextDate } from "./types";
+import type { DayRecord, OrderStatus, PlotPreference, Snapshot, Stall, TenancyStatus, Venue } from "./types";
 
 /**
  * Pure snapshot transitions for the rules the business depends on: daily
@@ -69,6 +69,84 @@ export function pastClosingTime(s: Snapshot, venue: Venue, at = Date.now()) {
   const close = minutesOfClock(venue.close);
   if (close < 0) return false;
   return nowMinutes(s, at) >= close;
+}
+
+export type Registration = {
+  venueId: string;
+  vendorName: string;
+  phone: string;
+  category: string;
+  fromStreet: string;
+};
+
+/**
+ * A vendor registering themselves from the link the organizer sent to the
+ * group. Decided 2026-09-06: no one is entered on their behalf, so the vendor
+ * owns their own name and number and the organizer only says yes or no.
+ *
+ * The phone number is the identity: it is how the organizer calls someone who
+ * has not turned up, and it stops the same person queueing twice.
+ */
+export function register(s: Snapshot, form: Registration, now: number, id: string): Snapshot {
+  const venue = s.venues.find((v) => v.id === form.venueId);
+  const name = form.vendorName.trim();
+  const phone = form.phone.trim();
+  const category = form.category.trim();
+  if (!venue || !name || !category || !isPhone(phone)) return s;
+  // Registering twice from the same phone would put two of the same person in
+  // the review queue, which is exactly the mess the organizer is escaping.
+  const already = s.stalls.some(
+    (row) => row.venueId === venue.id && row.phone === phone && row.status !== "rejected",
+  );
+  if (already) return s;
+  const stall: Stall = {
+    id,
+    venueId: venue.id,
+    vendorId: id,
+    vendorName: name,
+    phone,
+    appliedAt: now,
+    category,
+    fromStreet: form.fromStreet.trim(),
+    cover: "",
+    blurb: "",
+    status: "pending",
+    compliant: false,
+    licenseTier: "display",
+    orderingRequested: false,
+    orderingPaused: false,
+    feePaidThisMonth: false,
+    feePaidAt: 0,
+    signedUpToday: false,
+    allottedToday: false,
+    arrivedToday: false,
+    packedUpToday: false,
+    noShowToday: false,
+    signedUpAt: 0,
+    lotSlot: 0,
+    lotPlotId: "",
+    plotPreference: "only",
+    lastPlotId: "",
+  };
+  // Whoever just registered is the vendor now using this phone.
+  return { ...s, stalls: [...s.stalls, stall], vendorId: id, vendorName: name };
+}
+
+/**
+ * Approve or reject a batch in one go. A dozen vendors register the same
+ * evening after the link goes out, and clicking through them one at a time is
+ * how the organizer ends up not doing it at all.
+ */
+export function reviewMany(s: Snapshot, stallIds: string[], status: TenancyStatus): Snapshot {
+  if (status === "pending" || stallIds.length === 0) return s;
+  const wanted = new Set(stallIds);
+  let changed = false;
+  const stalls = s.stalls.map((row) => {
+    if (!wanted.has(row.id) || row.status !== "pending") return row;
+    changed = true;
+    return { ...row, status, compliant: status === "active" };
+  });
+  return changed ? { ...s, stalls } : s;
 }
 
 /** Sign a stall up for tonight. Refused once the venue's cutoff has passed. */
