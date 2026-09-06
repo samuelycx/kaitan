@@ -1,5 +1,6 @@
 import { claimPlots, findPlot, plotFits } from "./lot";
-import type { OrderStatus, PlotPreference, Snapshot, Stall, Venue } from "./types";
+import { cstDate, nextDate } from "./types";
+import type { DayRecord, OrderStatus, PlotPreference, Snapshot, Stall, Venue } from "./types";
 
 /**
  * Pure snapshot transitions for the rules the business depends on: daily
@@ -237,10 +238,54 @@ export function closeSignup(s: Snapshot, venueId: string): Snapshot {
   };
 }
 
-/** Roll over to the next trading day: everyone starts unsigned again. */
-export function openNextDay(s: Snapshot, venueId: string): Snapshot {
+/**
+ * Everything worth keeping about a venue's trading day, as it stood at the
+ * moment the day was closed. Written once and never touched again — the point
+ * of a record is that tomorrow cannot rewrite yesterday.
+ */
+export function dayRecords(s: Snapshot, venueId: string): DayRecord[] {
+  const venue = s.venues.find((v) => v.id === venueId);
+  if (!venue) return [];
+  const plotsThatDay = venue.floor?.plots.length ?? venue.slots;
+  return s.stalls
+    .filter((row) => row.venueId === venueId && row.status === "active")
+    .filter((row) => row.signedUpToday || row.allottedToday || row.noShowToday)
+    .map((row) => {
+      const took = s.sales.filter((sale) => sale.stallId === row.id && sale.at >= s.dayStartedAt);
+      return {
+        id: `${s.tradingDate}:${row.id}`,
+        date: s.tradingDate,
+        venueId,
+        stallId: row.id,
+        vendorName: row.vendorName,
+        signedUp: row.signedUpToday || row.allottedToday || row.noShowToday,
+        allotted: row.allottedToday,
+        arrived: row.arrivedToday,
+        noShow: row.noShowToday,
+        plotNo: row.lotSlot ? String(row.lotSlot) : "",
+        plotsThatDay,
+        salesYuan: took.reduce((sum, sale) => sum + sale.priceYuan, 0),
+        saleCount: took.length,
+      };
+    });
+}
+
+/**
+ * Roll over to the next trading day. Today is filed away first: the organizer
+ * has to be able to say how often a vendor turned up this month, and that is
+ * only possible if closing the day stops erasing it.
+ */
+export function openNextDay(s: Snapshot, venueId: string, at = Date.now()): Snapshot {
+  const filed = dayRecords(s, venueId);
+  const kept = s.dayLog.filter((row) => !filed.some((made) => made.id === row.id));
+  const opened = cstDate(at);
   return {
     ...s,
+    dayLog: [...kept, ...filed],
+    // The demo clock can leave the real date behind, so the day after the one
+    // just closed is the honest answer, not whatever today happens to be.
+    tradingDate: opened > s.tradingDate ? opened : nextDate(s.tradingDate),
+    dayStartedAt: at,
     venues: s.venues.map((v) => (v.id === venueId ? { ...v, signupOpen: true, closedToday: false } : v)),
     stalls: s.stalls.map((row) =>
       row.venueId === venueId

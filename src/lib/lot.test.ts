@@ -28,6 +28,7 @@ function stall(partial: {
     orderingRequested: false,
     orderingPaused: false,
     feePaidThisMonth: true,
+    feePaidAt: 0,
     signedUpToday: true,
     allottedToday: partial.allottedToday ?? true,
     arrivedToday: false,

@@ -57,6 +57,8 @@ export type Stall = {
   orderingRequested: boolean;
   orderingPaused: boolean;
   feePaidThisMonth: boolean;
+  /** When the organizer marked this month's fee paid, so the ledger can say when. */
+  feePaidAt: number;
   signedUpToday: boolean;
   allottedToday: boolean;
   arrivedToday: boolean;
@@ -240,6 +242,53 @@ export function stallPayLabel(stall: Stall) {
   return "可点单";
 }
 
+/**
+ * One stall on one trading day, written when the organizer opens the next day.
+ * Only the four things the organizer actually has to answer for are kept —
+ * signed up, turned up, stood the venue up, and took money. Nothing about
+ * stock or cost: this is a record of attendance, not a set of books.
+ */
+export type DayRecord = {
+  id: string;
+  /** Trading day in CST, as 2026-09-06. */
+  date: string;
+  venueId: string;
+  stallId: string;
+  vendorName: string;
+  signedUp: boolean;
+  allotted: boolean;
+  arrived: boolean;
+  noShow: boolean;
+  plotNo: string;
+  /** Plots the venue had that day, so old days stay readable if the map changes. */
+  plotsThatDay: number;
+  salesYuan: number;
+  saleCount: number;
+};
+
+const CST_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+/** The trading day an instant falls on, in CST, as 2026-09-06. */
+export function cstDate(at: number) {
+  return new Date(at + CST_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+/** The day after a CST date string. */
+export function nextDate(date: string) {
+  const at = Date.parse(`${date}T00:00:00Z`);
+  return new Date(at + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+/** 2026-09-06 as 09-06, which is how the organizer says it out loud. */
+export function shortDate(date: string) {
+  return date.slice(5);
+}
+
+/** The month a CST date falls in, as 2026-09. */
+export function monthOf(date: string) {
+  return date.slice(0, 7);
+}
+
 export type Snapshot = {
   venues: Venue[];
   stalls: Stall[];
@@ -260,4 +309,10 @@ export type Snapshot = {
    * day along. `null` means follow the real clock.
    */
   demoMinutes: number | null;
+  /** The trading day now in progress, in CST. */
+  tradingDate: string;
+  /** When that day began, so the day's takings can be told from earlier ones. */
+  dayStartedAt: number;
+  /** Closed trading days. Opening the next day appends here, never overwrites. */
+  dayLog: DayRecord[];
 };

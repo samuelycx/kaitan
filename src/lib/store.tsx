@@ -95,6 +95,9 @@ function load(): Snapshot {
       consumerId: parsed.consumerId || SEED.consumerId,
       consumerName: parsed.consumerName || SEED.consumerName,
       demoMinutes: parsed.demoMinutes ?? null,
+      tradingDate: parsed.tradingDate || SEED.tradingDate,
+      dayStartedAt: parsed.dayStartedAt ?? SEED.dayStartedAt,
+      dayLog: parsed.dayLog ?? SEED.dayLog,
       venues: (parsed.venues ?? SEED.venues).map((row) => {
         const seeded = SEED.venues.find((v) => v.id === row.id);
         return {
@@ -113,6 +116,7 @@ function load(): Snapshot {
             ...row,
             orderingPaused: row.orderingPaused ?? false,
             feePaidThisMonth: row.feePaidThisMonth ?? false,
+            feePaidAt: row.feePaidAt ?? 0,
             arrivedToday: row.arrivedToday ?? false,
             packedUpToday: row.packedUpToday ?? false,
             noShowToday: row.noShowToday ?? false,
@@ -197,6 +201,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           orderingRequested: false,
           orderingPaused: false,
           feePaidThisMonth: false,
+          feePaidAt: 0,
           signedUpToday: false,
           allottedToday: false,
           arrivedToday: false,
@@ -260,7 +265,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       markFeePaid(stallId, paid) {
         setSnap((s) => ({
           ...s,
-          stalls: s.stalls.map((row) => (row.id === stallId ? { ...row, feePaidThisMonth: paid } : row)),
+          stalls: s.stalls.map((row) =>
+            row.id === stallId ? { ...row, feePaidThisMonth: paid, feePaidAt: paid ? Date.now() : 0 } : row,
+          ),
         }));
       },
       setClosedToday(venueId, closed) {

@@ -103,7 +103,13 @@ export function appFromPath(path: string): MiniAppSpec {
 }
 
 export function isStackPage(path: string): boolean {
-  return path.startsWith("/stall/") || path.startsWith("/market/") || path === "/org/floor" || /^\/orders\/.+/.test(path);
+  return (
+    path.startsWith("/stall/") ||
+    path.startsWith("/market/") ||
+    path === "/org/floor" ||
+    path === "/org/ledger" ||
+    /^\/orders\/.+/.test(path)
+  );
 }
 
 export function titleFromPath(path: string, stallName?: string, pickupNo?: string): string {
@@ -119,6 +125,7 @@ export function titleFromPath(path: string, stallName?: string, pickupNo?: strin
   if (path === "/vendor/me") return "我的";
   if (path === "/org") return "今日";
   if (path === "/org/floor") return "现场";
+  if (path === "/org/ledger") return "对账";
   if (path === "/org/entry") return "进场";
   if (path === "/org/license") return "核证";
   if (path === "/org/flow") return "流水";

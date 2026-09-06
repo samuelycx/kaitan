@@ -126,6 +126,12 @@ export default function OrgVenuePage() {
         />
       </Card>
       <Card>
+        <Cell href="/org/ledger" end="对账 ›">
+          <p>本月对账</p>
+          <p className="text-[13px] text-[var(--muted)]">出勤、放鸽子、月费、占位，都在这里。</p>
+        </Cell>
+      </Card>
+      <Card>
         <CardHead>
           本月管理费 · 已缴 {active.length - feeUnpaid.length}/{active.length} · 线下收，只做记号
         </CardHead>

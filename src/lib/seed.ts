@@ -28,6 +28,48 @@ export const XIANG_FLOOR: VenueFloor = {
   ],
 };
 
+/**
+ * Six trading days already on the books, so the organizer's reconciliation page
+ * has something to answer with the first time it is opened. 甜甜糖葫芦 stands the
+ * venue up twice on purpose — that is the case the page exists for.
+ */
+const HISTORY: { stallId: string; name: string; plotNo: string; pattern: string }[] = [
+  { stallId: "s-1", name: "王姐烤面筋", plotNo: "01", pattern: "aaaaaa" },
+  { stallId: "s-2", name: "阿刘土家饼", plotNo: "", pattern: "wwaaww" },
+  { stallId: "s-3", name: "陈记水果", plotNo: "20", pattern: "aa-aaa" },
+  { stallId: "s-lin", name: "林晚烤冷面", plotNo: "18", pattern: "aaaa-a" },
+  { stallId: "s-5", name: "马记烤串", plotNo: "05", pattern: "aaaaaa" },
+  { stallId: "s-6", name: "甜甜糖葫芦", plotNo: "08", pattern: "anaana" },
+  { stallId: "s-7", name: "福记煎饼", plotNo: "12", pattern: "aaaaaa" },
+  { stallId: "s-8", name: "阿珍烤红薯", plotNo: "16", pattern: "aaanaa" },
+];
+
+const DAYS = ["2026-08-31", "2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04", "2026-09-05"];
+
+const DAY_LOG = DAYS.flatMap((date, i) =>
+  HISTORY.map(({ stallId, name, plotNo, pattern }) => {
+    // a = 出摊, n = 占了位没来, w = 报了没抢到, - = 那天没报名
+    const mark = pattern[i];
+    return {
+      id: `${date}:${stallId}`,
+      date,
+      venueId: "venue-xiang",
+      stallId,
+      vendorName: name,
+      signedUp: mark !== "-",
+      allotted: mark === "a" || mark === "n",
+      arrived: mark === "a",
+      noShow: mark === "n",
+      plotNo: mark === "a" || mark === "n" ? plotNo : "",
+      plotsThatDay: XIANG_FLOOR.plots.length,
+      salesYuan: mark === "a" ? 180 + ((i * 37 + stallId.length * 13) % 140) : 0,
+      saleCount: mark === "a" ? 16 + ((i * 5 + stallId.length) % 12) : 0,
+    };
+  }).filter((row) => row.signedUp),
+);
+
+const FEE_PAID_AT = Date.parse("2026-09-02T02:00:00Z");
+
 export const SEED: Snapshot = {
   vendorId: "v-lin",
   vendorName: "林晚烤冷面",
@@ -69,6 +111,7 @@ export const SEED: Snapshot = {
       orderingRequested: false,
       orderingPaused: false,
       feePaidThisMonth: true,
+      feePaidAt: FEE_PAID_AT,
       signedUpToday: true,
       allottedToday: true,
       arrivedToday: true,
@@ -95,6 +138,7 @@ export const SEED: Snapshot = {
       orderingRequested: false,
       orderingPaused: false,
       feePaidThisMonth: false,
+      feePaidAt: 0,
       signedUpToday: false,
       allottedToday: false,
       arrivedToday: false,
@@ -121,6 +165,7 @@ export const SEED: Snapshot = {
       orderingRequested: false,
       orderingPaused: false,
       feePaidThisMonth: true,
+      feePaidAt: FEE_PAID_AT,
       signedUpToday: true,
       allottedToday: true,
       arrivedToday: false,
@@ -147,6 +192,7 @@ export const SEED: Snapshot = {
       orderingRequested: false,
       orderingPaused: false,
       feePaidThisMonth: false,
+      feePaidAt: 0,
       signedUpToday: false,
       allottedToday: false,
       arrivedToday: false,
@@ -173,6 +219,7 @@ export const SEED: Snapshot = {
       orderingRequested: false,
       orderingPaused: false,
       feePaidThisMonth: false,
+      feePaidAt: 0,
       signedUpToday: false,
       allottedToday: false,
       arrivedToday: false,
@@ -199,6 +246,7 @@ export const SEED: Snapshot = {
       orderingRequested: false,
       orderingPaused: false,
       feePaidThisMonth: true,
+      feePaidAt: FEE_PAID_AT,
       signedUpToday: true,
       allottedToday: true,
       arrivedToday: true,
@@ -225,6 +273,7 @@ export const SEED: Snapshot = {
       orderingRequested: false,
       orderingPaused: false,
       feePaidThisMonth: false,
+      feePaidAt: 0,
       signedUpToday: true,
       allottedToday: true,
       arrivedToday: false,
@@ -251,6 +300,7 @@ export const SEED: Snapshot = {
       orderingRequested: false,
       orderingPaused: false,
       feePaidThisMonth: true,
+      feePaidAt: FEE_PAID_AT,
       signedUpToday: true,
       allottedToday: true,
       arrivedToday: true,
@@ -277,6 +327,7 @@ export const SEED: Snapshot = {
       orderingRequested: false,
       orderingPaused: false,
       feePaidThisMonth: true,
+      feePaidAt: FEE_PAID_AT,
       signedUpToday: true,
       allottedToday: true,
       arrivedToday: false,
@@ -307,6 +358,9 @@ export const SEED: Snapshot = {
   consumerId: "c-me",
   consumerName: "路过的人",
   demoMinutes: 14 * 60,
+  tradingDate: "2026-09-06",
+  dayStartedAt: Date.parse("2026-09-05T16:00:00Z"),
+  dayLog: DAY_LOG,
   sales: [],
   orders: [],
   disputes: [],

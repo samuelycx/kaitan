@@ -52,6 +52,12 @@ export default function OrgTodayPage() {
         </Cell>
       </Card>
       <Card>
+        <Cell href="/org/ledger" end="对账 ›">
+          <p>出勤 · 月费 · 占位</p>
+          <p className="text-[13px] text-[var(--muted)]">谁常放鸽子、谁没交月费、这个点最近满不满。</p>
+        </Cell>
+      </Card>
+      <Card>
         <CardHead>顾客今晚会看到 · 只有已开摊的能点单</CardHead>
         {venue.closedToday ? (
           <Empty>停市，开摊里是空的。</Empty>

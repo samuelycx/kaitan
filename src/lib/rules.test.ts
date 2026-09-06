@@ -16,7 +16,8 @@ import {
 } from "./rules";
 import { canLeaveReview } from "./lot";
 import { boothState, canTakeMiniOrder, stallPayLabel } from "./types";
-import type { Order, Snapshot, Stall, Venue } from "./types";
+import { attendance, occupancy, occupancyAverage } from "./ledger";
+import type { DayRecord, Order, Sale, Snapshot, Stall, Venue } from "./types";
 
 const VENUE_ID = "venue-xiang";
 
@@ -35,6 +36,7 @@ function stall(partial: Partial<Stall> & { id: string }): Stall {
     orderingRequested: false,
     orderingPaused: false,
     feePaidThisMonth: true,
+    feePaidAt: 0,
     signedUpToday: false,
     allottedToday: false,
     arrivedToday: false,
@@ -105,6 +107,9 @@ function snapshot(stalls: Stall[], orders: Order[] = [], venue: Venue = VENUE): 
     consumerId: "c-me",
     consumerName: "顾客",
     demoMinutes: 600,
+    tradingDate: "2026-09-06",
+    dayStartedAt: 0,
+    dayLog: [],
   };
 }
 
@@ -455,5 +460,117 @@ describe("一步报名", () => {
   it("remembers tonight's plot when the next trading day opens", () => {
     const s = snapshot([stall({ id: "a", allottedToday: true, lotPlotId: "p01" })]);
     expect(openNextDay(s, VENUE_ID).stalls[0].lastPlotId).toBe("p01");
+  });
+});
+
+describe("每天留档", () => {
+  function withSales(s: Snapshot, sales: Sale[]): Snapshot {
+    return { ...s, sales };
+  }
+
+  it("files tonight away when the next day opens", () => {
+    const s = snapshot([
+      stall({ id: "a", signedUpToday: true, allottedToday: true, arrivedToday: true, lotSlot: 1 }),
+    ]);
+    const after = openNextDay(s, VENUE_ID);
+    expect(after.dayLog).toHaveLength(1);
+    expect(after.dayLog[0]).toMatchObject({ date: "2026-09-06", arrived: true, plotNo: "1" });
+    expect(after.stalls[0].arrivedToday).toBe(false);
+  });
+
+  it("does not let a new day overwrite the day before", () => {
+    const s = snapshot([stall({ id: "a", signedUpToday: true, allottedToday: true, arrivedToday: true })]);
+    const day2 = openNextDay(s, VENUE_ID);
+    // The next day trades too, so there is something to file a second time.
+    const traded = {
+      ...day2,
+      stalls: day2.stalls.map((row) => ({ ...row, signedUpToday: true, allottedToday: true, arrivedToday: true })),
+    };
+    const twice = openNextDay(traded, VENUE_ID);
+    expect(twice.dayLog.map((row) => row.date)).toEqual(["2026-09-06", "2026-09-07"]);
+  });
+
+  it("leaves out anyone who never signed up that day", () => {
+    const s = snapshot([stall({ id: "a" })]);
+    expect(openNextDay(s, VENUE_ID).dayLog).toHaveLength(0);
+  });
+
+  it("records the no-show as a no-show, not as an absence", () => {
+    const s = snapshot([stall({ id: "a", noShowToday: true })]);
+    expect(openNextDay(s, VENUE_ID).dayLog[0]).toMatchObject({ noShow: true, arrived: false });
+  });
+
+  it("counts only the takings of the day being filed", () => {
+    const s = withSales(
+      { ...snapshot([stall({ id: "a", signedUpToday: true, allottedToday: true, arrivedToday: true })]), dayStartedAt: 100 },
+      [
+        { id: "x", stallId: "a", dishName: "旧的", priceYuan: 50, channel: "stall", at: 40 },
+        { id: "y", stallId: "a", dishName: "今天的", priceYuan: 12, channel: "stall", at: 200 },
+      ],
+    );
+    expect(openNextDay(s, VENUE_ID).dayLog[0]).toMatchObject({ salesYuan: 12, saleCount: 1 });
+  });
+});
+
+describe("管场对账", () => {
+  function record(partial: Partial<DayRecord> & { date: string; stallId: string }): DayRecord {
+    return {
+      id: `${partial.date}:${partial.stallId}`,
+      venueId: VENUE_ID,
+      vendorName: partial.stallId,
+      signedUp: true,
+      allotted: true,
+      arrived: true,
+      noShow: false,
+      plotNo: "01",
+      plotsThatDay: 20,
+      salesYuan: 100,
+      saleCount: 10,
+      ...partial,
+    };
+  }
+
+  const stalls = [stall({ id: "a" }), stall({ id: "b" })];
+
+  it("answers how many days a vendor showed up and how often they did not", () => {
+    const log = [
+      record({ date: "2026-09-01", stallId: "a" }),
+      record({ date: "2026-09-02", stallId: "a" }),
+      record({ date: "2026-09-03", stallId: "a", arrived: false, noShow: true, salesYuan: 0 }),
+      record({ date: "2026-08-31", stallId: "a" }),
+    ];
+    const rows = attendance(log, VENUE_ID, "2026-09", stalls);
+    expect(rows.find((row) => row.stallId === "a")).toMatchObject({ days: 2, noShows: 1, salesYuan: 200 });
+  });
+
+  it("does not blame a vendor who signed up and lost the draw", () => {
+    const log = [record({ date: "2026-09-01", stallId: "b", allotted: false, arrived: false, salesYuan: 0 })];
+    expect(attendance(log, VENUE_ID, "2026-09", stalls).find((row) => row.stallId === "b")).toMatchObject({
+      noShows: 0,
+      waitlisted: 1,
+    });
+  });
+
+  it("puts the vendors who stood the venue up at the top", () => {
+    const log = [record({ date: "2026-09-01", stallId: "b", arrived: false, noShow: true })];
+    expect(attendance(log, VENUE_ID, "2026-09", stalls)[0].stallId).toBe("b");
+  });
+
+  it("averages how many plots were taken and left empty", () => {
+    const log = [
+      record({ date: "2026-09-01", stallId: "a" }),
+      record({ date: "2026-09-01", stallId: "b" }),
+      record({ date: "2026-09-02", stallId: "a" }),
+    ];
+    const days = occupancy(log, VENUE_ID);
+    expect(days.map((row) => row.date)).toEqual(["2026-09-02", "2026-09-01"]);
+    expect(occupancyAverage(days)).toMatchObject({ days: 2, taken: 1.5, vacant: 18.5 });
+  });
+
+  it("keeps to the last week even when more days are on file", () => {
+    const log = Array.from({ length: 10 }, (_, i) =>
+      record({ date: `2026-09-${String(i + 1).padStart(2, "0")}`, stallId: "a" }),
+    );
+    expect(occupancy(log, VENUE_ID)).toHaveLength(7);
   });
 });
