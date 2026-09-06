@@ -54,18 +54,33 @@ export function Shell({ children }: { children: ReactNode }) {
       </nav>
       <div className="phone">
         <div className="phone-glass">
+          {/* 状态栏只有时间和信号电量，胶囊按钮在导航栏那一行——微信就是这么排的。 */}
           <header className="mp-status">
-            <span>{clock}</span>
-            <span className="mp-capsule" aria-hidden>
-              <i />
-              <b />
-            </span>
-            <span className="mp-signal">
-              <em />
-              <em />
-              <em />
-              <small />
-            </span>
+            <span className="mp-clock">{clock}</span>
+            <svg className="mp-signal" viewBox="0 0 68 12" aria-hidden>
+              <rect x="0" y="7.5" width="3" height="4.5" rx="1" />
+              <rect x="4.5" y="5.5" width="3" height="6.5" rx="1" />
+              <rect x="9" y="3" width="3" height="9" rx="1" />
+              <rect x="13.5" y="0.5" width="3" height="11.5" rx="1" />
+              <path
+                d="M22 4.2a9 9 0 0 1 11 0"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+              />
+              <path
+                d="M24.6 7.2a5.2 5.2 0 0 1 5.8 0"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+              />
+              <circle cx="27.5" cy="10.2" r="1.3" />
+              <rect x="40" y="1.5" width="22" height="10" rx="3" fill="none" stroke="currentColor" strokeWidth="1.1" opacity="0.5" />
+              <rect x="41.8" y="3.3" width="15" height="6.4" rx="1.6" />
+              <path d="M63.6 5a2.4 2.4 0 0 1 0 4z" opacity="0.5" />
+            </svg>
           </header>
           <div className="mp-nav">
             {stacked ? (
@@ -76,7 +91,18 @@ export function Shell({ children }: { children: ReactNode }) {
               <span className="mp-back-slot" />
             )}
             <h1>{title}</h1>
-            <span className="mp-nav-app">{app.name}</span>
+            <span className="mp-capsule" aria-hidden>
+              <svg viewBox="0 0 20 4">
+                <circle cx="2.4" cy="2" r="1.8" />
+                <circle cx="10" cy="2" r="1.8" />
+                <circle cx="17.6" cy="2" r="1.8" />
+              </svg>
+              <i />
+              <svg viewBox="0 0 18 18">
+                <circle cx="9" cy="9" r="7.2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                <circle cx="9" cy="9" r="2.4" />
+              </svg>
+            </span>
           </div>
           <main className="mp-page">{hydrated ? children : null}</main>
           {!stacked && (

@@ -106,6 +106,7 @@ export function isStackPage(path: string): boolean {
   return (
     path.startsWith("/stall/") ||
     path.startsWith("/market/") ||
+    path === "/floor" ||
     path === "/org/floor" ||
     path === "/org/ledger" ||
     /^\/orders\/.+/.test(path)
@@ -116,6 +117,7 @@ export function titleFromPath(path: string, stallName?: string, pickupNo?: strin
   if (path.startsWith("/stall/")) return stallName || "摊位";
   if (path.startsWith("/market/")) return "今晚摊位";
   if (/^\/orders\/.+/.test(path)) return pickupNo ? `取餐 ${pickupNo}` : "取餐号";
+  if (path === "/floor") return "今晚场图";
   if (path === "/orders") return "订单";
   if (path === "/me") return "我的";
   if (path === "/vendor") return "占位";

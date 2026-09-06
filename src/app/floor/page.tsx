@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { LotMap, Page } from "@/components/mp";
 import { useStore } from "@/lib/store";
 import { boothState, stallCover, tonightBooths } from "@/lib/types";
@@ -37,9 +36,6 @@ export default function FloorPage() {
         />
       </div>
       <p className="px-1 pt-1 text-[12px] text-[var(--muted)]">红格是已亮灯的摊，点开就是菜单。空格今晚没人。</p>
-      <Link href="/" className="mp-btn mp-btn-ghost">
-        回今晚名单
-      </Link>
     </Page>
   );
 }

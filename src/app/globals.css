@@ -104,103 +104,55 @@ body {
 }
 
 .mp-status {
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   height: 44px;
-  padding: 0 16px;
-  font-size: 12px;
+  padding: 0 18px 0 20px;
+  color: var(--ink);
+}
+
+.mp-clock {
+  font-size: 15px;
   font-weight: 600;
-}
-
-.mp-capsule {
-  position: absolute;
-  top: 8px;
-  right: 10px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 28px;
-  padding: 0 8px 0 10px;
-  border-radius: 999px;
-  background: #111;
-  color: #fff;
-}
-
-.mp-capsule i,
-.mp-capsule b {
-  display: block;
-}
-
-.mp-capsule i {
-  width: 16px;
-  height: 3px;
-  box-shadow:
-    0 -4px 0 #fff,
-    0 0 0 #fff,
-    0 4px 0 #fff;
-}
-
-.mp-capsule b {
-  width: 16px;
-  height: 16px;
-  border: 1.5px solid #fff;
-  border-radius: 99px;
+  letter-spacing: 0.01em;
 }
 
 .mp-signal {
-  display: flex;
-  align-items: flex-end;
-  gap: 2px;
-  padding-right: 78px;
+  width: 68px;
+  height: 12px;
+  fill: currentColor;
+  color: var(--ink);
 }
 
-.mp-signal em {
-  display: block;
-  width: 3px;
-  background: var(--ink);
-}
-
-.mp-signal em:nth-child(1) {
-  height: 5px;
-}
-.mp-signal em:nth-child(2) {
-  height: 8px;
-}
-.mp-signal em:nth-child(3) {
-  height: 11px;
-}
-
-.mp-signal small {
-  display: block;
-  width: 16px;
-  height: 8px;
-  margin-left: 4px;
-  border: 1.2px solid var(--ink);
-  border-radius: 2px;
-}
-
+/* 导航栏：返回、居中标题、右边胶囊，胶囊跟标题同一行。 */
 .mp-nav {
-  display: grid;
-  grid-template-columns: 64px 1fr 64px;
+  position: relative;
+  display: flex;
   align-items: center;
-  min-height: 44px;
-  padding: 0 8px;
+  height: 44px;
+  padding: 0 10px;
 }
 
 .mp-nav h1 {
+  position: absolute;
+  left: 96px;
+  right: 96px;
   margin: 0;
   text-align: center;
-  font-family: var(--font-display), "Noto Serif SC", serif;
   font-size: 17px;
   font-weight: 600;
+  line-height: 44px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mp-back,
 .mp-back-slot {
   width: 36px;
   height: 36px;
+  flex-shrink: 0;
 }
 
 .mp-back {
@@ -211,14 +163,36 @@ body {
   line-height: 1;
 }
 
-.mp-nav-app {
-  justify-self: end;
-  max-width: 64px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 10px;
-  color: var(--muted);
+.mp-capsule {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 87px;
+  height: 32px;
+  padding: 0 11px;
+  border: 0.5px solid color-mix(in srgb, var(--ink) 14%, transparent);
+  border-radius: 16px;
+  background: color-mix(in srgb, white 55%, transparent);
+  color: var(--ink);
+  fill: currentColor;
+}
+
+.mp-capsule svg:first-of-type {
+  width: 20px;
+  height: 4px;
+}
+
+.mp-capsule svg:last-of-type {
+  width: 17px;
+  height: 17px;
+}
+
+/* 胶囊中间那道分隔线。 */
+.mp-capsule i {
+  width: 0.5px;
+  height: 18px;
+  background: color-mix(in srgb, var(--ink) 14%, transparent);
 }
 
 .mp-page {
@@ -423,9 +397,11 @@ body {
   fill: color-mix(in srgb, var(--ink) 8%, var(--paper));
 }
 
+/* 有人的格子描朱红边——名单页上那句「红格=已亮灯」说的就是它。 */
 .floor-plot.is-on {
   fill: transparent;
-  stroke: var(--ink);
+  stroke: var(--lacquer);
+  stroke-width: 2;
 }
 
 .floor-plot.is-me {
