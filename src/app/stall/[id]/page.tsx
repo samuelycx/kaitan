@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Band, Btn, Card, CardHead, Cell, Empty, Page, PlotChip } from "@/components/mp";
@@ -47,6 +48,9 @@ export default function StallPage() {
   const paused = stall.licenseTier === "ordering" && stall.orderingPaused;
   const { ahead, minutes } = stallQueue(orders, stall.id);
   const streak = arrivalStreak(dayLog, stall.id, tradingDate);
+  const alsoHere = tonightBooths(stalls, venues[0]?.floor)
+    .filter((row) => row.stall.id !== stall.id && boothState(row.stall) === "open")
+    .slice(0, 2);
   const picks = menu
     .map((d) => ({ dishId: d.id, qty: qty[d.id] ?? 0, name: d.name, priceYuan: d.priceYuan }))
     .filter((row) => row.qty > 0);
@@ -94,8 +98,8 @@ export default function StallPage() {
           <p>{state === "open" ? `约 ${minutes} 分钟` : "—"}</p>
         </div>
         <div>
-          <p>出摊</p>
-          <p>{streak > 0 ? `连续 ${streak} 天` : "今天头一天"}</p>
+          <p>近六天</p>
+          <p>{streak >= 6 ? "天天出摊" : streak > 0 ? `连着 ${streak} 天` : "今天头一天"}</p>
         </div>
       </div>
       <p className="px-0.5 pt-3 text-[13px] leading-relaxed text-[var(--muted)]">
@@ -159,6 +163,22 @@ export default function StallPage() {
             </p>
           </Cell>
         </Card>
+      )}
+      {alsoHere.length > 0 && (
+        <div className="also-here">
+          <p>这摊也在场内</p>
+          <div>
+            {alsoHere.map(({ stall: row, slotNo }) => (
+              <Link key={row.id} href={`/stall/${row.id}`}>
+                <img src={stallCover(row)} alt="" />
+                <span>
+                  <b>{row.vendorName}</b>
+                  <small>{slotNo} · 已亮灯</small>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
       )}
       <Card>
         <Cell
