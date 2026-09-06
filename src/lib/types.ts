@@ -92,30 +92,14 @@ export function venueCover(venue?: Pick<Venue, "cover"> | null) {
   return venue?.cover || "/stalls/venue.jpg";
 }
 
-export function stallCover(stall: Pick<Stall, "id" | "cover" | "category">) {
-  if (stall.cover) return stall.cover;
-  if (stall.id === "s-lin") return "/stalls/lin.jpg";
-  if (stall.id === "s-2") return "/stalls/liu.jpg";
-  if (stall.id === "s-3" || stall.category === "水果") return "/stalls/chen.jpg";
-  if (stall.id === "s-5") return "/stalls/ma.jpg";
-  if (stall.id === "s-6") return "/stalls/tian.jpg";
-  if (stall.id === "s-7") return "/stalls/fu.jpg";
-  if (stall.id === "s-8") return "/stalls/zhen.jpg";
-  return "/stalls/wang.jpg";
-}
+const COVER_BY_CATEGORY: Record<string, string> = {
+  水果: "/stalls/chen.jpg",
+  烤串: "/stalls/ma.jpg",
+  糖水: "/stalls/tian.jpg",
+};
 
-export function dishPhoto(dish: Pick<Dish, "id" | "name" | "photo">) {
-  if (dish.photo) return dish.photo;
-  if (dish.id === "d-2" || dish.name.includes("辣")) return "/dishes/mianjin-spicy.jpg";
-  if (dish.id === "d-3" || dish.name.includes("水果")) return "/dishes/fruit.jpg";
-  if (dish.id === "d-4" || dish.name.includes("冷面")) return "/dishes/lengmian.jpg";
-  if (dish.id === "d-5" || dish.name.includes("蛋")) return "/dishes/egg.jpg";
-  if (dish.name.includes("煎饼")) return "/dishes/jianbing.jpg";
-  if (dish.name.includes("饼")) return "/dishes/bing.jpg";
-  if (dish.name.includes("串") || dish.name.includes("茄")) return "/dishes/chuan.jpg";
-  if (dish.name.includes("葫芦") || dish.name.includes("山楂") || dish.name.includes("草莓")) return "/dishes/tanghulu.jpg";
-  if (dish.name.includes("薯")) return "/dishes/hongshu.jpg";
-  return "/dishes/mianjin.jpg";
+export function stallCover(stall: Pick<Stall, "cover" | "category">) {
+  return stall.cover || COVER_BY_CATEGORY[stall.category] || "/stalls/wang.jpg";
 }
 
 export function photoByName(name: string) {
@@ -130,6 +114,10 @@ export function photoByName(name: string) {
   if (name.includes("葫芦") || name.includes("山楂") || name.includes("草莓")) return "/dishes/tanghulu.jpg";
   if (name.includes("薯")) return "/dishes/hongshu.jpg";
   return "/dishes/mianjin.jpg";
+}
+
+export function dishPhoto(dish: Pick<Dish, "name" | "photo">) {
+  return dish.photo || photoByName(dish.name);
 }
 
 export function orderThumb(order: { items: { dishId: string; name: string }[] }, dishes: Dish[]) {
@@ -189,20 +177,21 @@ export type Dispute = {
 export type Review = {
   id: string;
   stallId: string;
+  consumerId?: string;
   stars: number;
   note: string;
   nick: string;
   at: number;
 };
 
-export function stallRating(reviews: Review[] | undefined, stallId: string) {
-  const rows = (reviews ?? []).filter((row) => row.stallId === stallId);
+export function stallRating(reviews: Review[], stallId: string) {
+  const rows = reviews.filter((row) => row.stallId === stallId);
   if (rows.length === 0) return { avg: 0, count: 0 };
   const avg = rows.reduce((sum, row) => sum + row.stars, 0) / rows.length;
   return { avg: Math.round(avg * 10) / 10, count: rows.length };
 }
 
-export function ratingLabel(reviews: Review[] | undefined, stallId: string) {
+export function ratingLabel(reviews: Review[], stallId: string) {
   const { avg, count } = stallRating(reviews, stallId);
   return count > 0 ? `${avg} · ${count}评` : "还没人评";
 }
@@ -234,4 +223,6 @@ export type Snapshot = {
   vendorName: string;
   organizerId: string;
   organizerName: string;
+  consumerId: string;
+  consumerName: string;
 };

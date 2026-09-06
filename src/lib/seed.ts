@@ -277,6 +277,8 @@ export const SEED: Snapshot = {
     { id: "d-16", stallId: "s-8", name: "蜜汁烤红薯", priceYuan: 6, onTonight: true, photo: "/dishes/hongshu.jpg" },
     { id: "d-17", stallId: "s-8", name: "原味烤红薯", priceYuan: 5, onTonight: true, photo: "/dishes/hongshu.jpg" },
   ],
+  consumerId: "c-me",
+  consumerName: "路过的人",
   sales: [],
   orders: [],
   disputes: [],

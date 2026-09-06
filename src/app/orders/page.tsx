@@ -6,7 +6,7 @@ import { ORDER_STATUS, orderThumb, stallCover } from "@/lib/types";
 
 export default function OrdersPage() {
   const { orders, dishes, stalls } = useStore();
-  const list = orders ?? [];
+  const list = orders;
 
   return (
     <Page>

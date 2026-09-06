@@ -30,7 +30,7 @@ export default function OrgFloorPage() {
           <Empty>还没有人占到今日摊位。</Empty>
         ) : (
           allotted.map((s) => {
-            const live = (orders ?? []).some(
+            const live = orders.some(
               (row) => row.stallId === s.id && (row.status === "placed" || row.status === "ready"),
             );
             return (
@@ -118,10 +118,10 @@ export default function OrgFloorPage() {
       </Card>
       <Card>
         <CardHead>本场记录</CardHead>
-        {(disputes ?? []).length === 0 ? (
+        {disputes.length === 0 ? (
           <Empty>还没有纠纷记录。</Empty>
         ) : (
-          (disputes ?? []).map((row) => (
+          disputes.map((row) => (
             <Cell key={row.id}>
               <p>{row.vendorName}</p>
               <p className="text-[13px] text-[var(--muted)]">{row.note}</p>

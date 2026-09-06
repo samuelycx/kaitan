@@ -25,7 +25,7 @@ export default function OrderDetailPage() {
   const [copied, setCopied] = useState(false);
   const [stars, setStars] = useState(5);
   const [note, setNote] = useState("");
-  const order = (orders ?? []).find((row) => row.id === id);
+  const order = orders.find((row) => row.id === id);
   const stall = stalls.find((s) => s.id === order?.stallId);
   const venue = venues.find((row) => row.id === stall?.venueId);
   const booth = tonightBooths(stalls, venues.find((row) => row.id === stall?.venueId)?.floor ?? venues[0]?.floor).find(
@@ -128,7 +128,7 @@ export default function OrderDetailPage() {
           />
         </Card>
       )}
-      {stall && order.status === "picked" && canLeaveReview(stall, orders ?? [], false) && (
+      {stall && order.status === "picked" && canLeaveReview(stall, orders, false) && (
         <Card>
           <CardHead>取过了，评一句</CardHead>
           <form

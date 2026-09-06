@@ -16,11 +16,11 @@ export function Shell({ children }: { children: ReactNode }) {
   const stallId = pathname.startsWith("/stall/") ? pathname.slice("/stall/".length) : "";
   const stallName = stalls.find((s) => s.id === stallId)?.vendorName;
   const orderId = pathname.startsWith("/orders/") ? pathname.slice("/orders/".length) : "";
-  const pickupNo = (orders ?? []).find((row) => row.id === orderId)?.pickupNo;
+  const pickupNo = orders.find((row) => row.id === orderId)?.pickupNo;
   const title = titleFromPath(pathname, stallName, pickupNo);
   const pendingCount = stalls.filter((s) => s.status === "pending").length;
   const licenseCount = stalls.filter((s) => s.licenseTier !== "ordering" && s.orderingRequested).length;
-  const liveOrders = (orders ?? []).filter((row) => row.status === "placed" || row.status === "ready");
+  const liveOrders = orders.filter((row) => row.status === "placed" || row.status === "ready");
   const myStallId = stalls.find((s) => s.vendorId === vendorId)?.id;
   const orderBadge = app.id === "vendor" ? liveOrders.filter((row) => row.stallId === myStallId).length : liveOrders.length;
   const [clock, setClock] = useState("18:20");

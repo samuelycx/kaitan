@@ -5,11 +5,11 @@ import { useStore } from "@/lib/store";
 import { ORDER_STATUS, orderThumb, stallCover, venueCover } from "@/lib/types";
 
 export default function ConsumerMePage() {
-  const { venues, stalls, dishes, orders, reviews } = useStore();
+  const { venues, stalls, dishes, orders, reviews, consumerId } = useStore();
   const venue = venues[0];
   if (!venue) return <p>还没有经营点。</p>;
-  const tickets = (orders ?? []).filter((row) => row.status !== "refunded");
-  const mine = (reviews ?? []).filter((row) => row.nick === "路过的人" && row.at > 10);
+  const tickets = orders.filter((row) => row.status !== "refunded");
+  const mine = reviews.filter((row) => row.consumerId === consumerId);
 
   return (
     <Page>

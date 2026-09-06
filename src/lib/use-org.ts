@@ -15,7 +15,7 @@ export function useOrgDesk() {
   const licenseQueue = active.filter((s) => s.licenseTier !== "ordering" && s.orderingRequested);
   const canOrder = active.filter((s) => s.licenseTier === "ordering");
   const tonightSales = store.sales.filter((row) => here.some((s) => s.id === row.stallId));
-  const tonightOrders = (store.orders ?? []).filter((row) => here.some((s) => s.id === row.stallId));
+  const tonightOrders = store.orders.filter((row) => here.some((s) => s.id === row.stallId));
   const feeUnpaid = active.filter((s) => !s.feePaidThisMonth);
   return {
     ...store,

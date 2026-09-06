@@ -8,11 +8,19 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { canLeaveReview, claimPlots, findPlot, formatSlotNo, plotByNo, plotFits } from "./lot";
+import { canLeaveReview, claimPlots, formatSlotNo, plotByNo } from "./lot";
+import * as rules from "./rules";
 import { SEED } from "./seed";
 import type { Dish, Dispute, Order, OrderStatus, Review, Role, Sale, Snapshot, Stall, Venue } from "./types";
 
 const KEY = "kaitan-vendor-v2";
+
+let idSeq = 0;
+
+function newId(prefix: string) {
+  idSeq += 1;
+  return `${prefix}-${Date.now().toString(36)}-${idSeq.toString(36)}`;
+}
 
 function allocate(stalls: Stall[], venue: Venue): Stall[] {
   return claimPlots(stalls, venue);
@@ -43,7 +51,7 @@ type Store = Snapshot & {
   markArrived: (stallId: string) => void;
   markNoShow: (stallId: string) => void;
   addDispute: (stallId: string, note: string) => void;
-      addReview: (stallId: string, stars: number, note: string, ateHere?: boolean) => void;
+  addReview: (stallId: string, stars: number, note: string, ateHere?: boolean) => void;
   refundOrder: (orderId: string) => void;
 };
 
@@ -60,8 +68,11 @@ function load(): Snapshot {
       ...SEED,
       ...parsed,
       orders: parsed.orders ?? [],
+      sales: parsed.sales ?? SEED.sales,
       disputes: parsed.disputes ?? [],
       reviews: parsed.reviews ?? SEED.reviews,
+      consumerId: parsed.consumerId || SEED.consumerId,
+      consumerName: parsed.consumerName || SEED.consumerName,
       venues: (parsed.venues ?? SEED.venues).map((row) => {
         const seeded = SEED.venues.find((v) => v.id === row.id);
         return {
@@ -84,7 +95,7 @@ function load(): Snapshot {
             noShowToday: row.noShowToday ?? false,
             cover: row.cover || seeded?.cover || "",
             blurb: row.blurb || seeded?.blurb || "",
-            category: row.id === "s-5" ? "烤串" : row.category,
+            category: row.category || seeded?.category || "小吃",
             lotSlot:
               typeof row.lotSlot === "number" && row.lotSlot > 0
                 ? row.lotSlot
@@ -131,18 +142,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const value = useMemo<Store>(
     () => ({
       ...snap,
-      dishes: snap.dishes ?? [],
-      sales: snap.sales ?? [],
-      orders: snap.orders ?? [],
-      disputes: snap.disputes ?? [],
-      reviews: snap.reviews ?? [],
       hydrated,
       role,
       setRole,
       apply(venueId, category, fromStreet) {
         if (snap.stalls.some((s) => s.venueId === venueId && s.vendorId === snap.vendorId)) return;
         const row: Stall = {
-          id: `s-${Date.now()}`,
+          id: newId("s"),
           venueId,
           vendorId: snap.vendorId,
           vendorName: snap.vendorName,
@@ -188,77 +194,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         });
       },
       signUp(stallId, plotId) {
-        setSnap((s) => {
-          const target = s.stalls.find((row) => row.id === stallId);
-          const venue = s.venues.find((v) => v.id === target?.venueId);
-          if (!target || !venue || !venue.signupOpen || target.status !== "active") return s;
-          const plot = plotId ? findPlot(venue.floor, plotId) : findPlot(venue.floor, target.lotPlotId);
-          if (plotId && (!plot || !plotFits(target.category, plot))) return s;
-          const stalls = s.stalls.map((row) =>
-            row.id === stallId
-              ? {
-                  ...row,
-                  signedUpToday: true,
-                  signedUpAt: row.signedUpAt || Date.now(),
-                  lotPlotId: plot?.id || row.lotPlotId,
-                  lotSlot: plot ? Number(plot.no) : row.lotSlot,
-                }
-              : row,
-          );
-          return { ...s, stalls: allocate(stalls, venue) };
-        });
+        setSnap((cur) => rules.signUp(cur, stallId, plotId, Date.now()));
       },
       withdraw(stallId) {
-        setSnap((s) => {
-          const target = s.stalls.find((row) => row.id === stallId);
-          const venue = s.venues.find((v) => v.id === target?.venueId);
-          if (!target || !venue || !venue.signupOpen) return s;
-          const stalls = s.stalls.map((row) =>
-            row.id === stallId
-              ? {
-                  ...row,
-                  signedUpToday: false,
-                  allottedToday: false,
-                  signedUpAt: 0,
-                  arrivedToday: false,
-                  lotSlot: 0,
-                  lotPlotId: "",
-                }
-              : row,
-          );
-          return { ...s, stalls: allocate(stalls, venue) };
-        });
+        setSnap((cur) => rules.withdraw(cur, stallId));
       },
       closeSignup(venueId) {
-        setSnap((s) => {
-          const venue = s.venues.find((v) => v.id === venueId);
-          if (!venue) return s;
-          return {
-            ...s,
-            venues: s.venues.map((v) => (v.id === venueId ? { ...v, signupOpen: false } : v)),
-            stalls: allocate(s.stalls, venue),
-          };
-        });
+        setSnap((cur) => rules.closeSignup(cur, venueId));
       },
       openNextDay(venueId) {
-        setSnap((s) => ({
-          ...s,
-          venues: s.venues.map((v) => (v.id === venueId ? { ...v, signupOpen: true, closedToday: false } : v)),
-          stalls: s.stalls.map((row) =>
-            row.venueId === venueId
-              ? {
-                  ...row,
-                  signedUpToday: false,
-                  allottedToday: false,
-                  signedUpAt: 0,
-                  arrivedToday: false,
-                  noShowToday: false,
-                  lotSlot: 0,
-                  lotPlotId: "",
-                }
-              : row,
-          ),
-        }));
+        setSnap((cur) => rules.openNextDay(cur, venueId));
       },
       markFeePaid(stallId, paid) {
         setSnap((s) => ({
@@ -276,7 +221,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const label = name.trim();
         if (!label || priceYuan <= 0) return;
         const row: Dish = {
-          id: `d-${Date.now()}`,
+          id: newId("d"),
           stallId,
           name: label,
           priceYuan,
@@ -301,18 +246,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }));
       },
       recordStallSale(stallId, dishId) {
-        const stall = snap.stalls.find((row) => row.id === stallId);
-        const dish = snap.dishes.find((d) => d.id === dishId && d.stallId === stallId);
-        if (!stall || stall.status !== "active" || !stall.allottedToday || !dish || !dish.onTonight) return;
-        const row: Sale = {
-          id: `sale-${Date.now()}`,
-          stallId,
-          dishName: dish.name,
-          priceYuan: dish.priceYuan,
-          channel: "stall",
-          at: Date.now(),
-        };
-        setSnap((s) => ({ ...s, sales: [row, ...s.sales] }));
+        setSnap((s) => {
+          const stall = s.stalls.find((row) => row.id === stallId);
+          const dish = s.dishes.find((d) => d.id === dishId && d.stallId === stallId);
+          if (!stall || stall.status !== "active" || !stall.allottedToday || !dish || !dish.onTonight) return s;
+          const row: Sale = {
+            id: newId("sale"),
+            stallId,
+            dishName: dish.name,
+            priceYuan: dish.priceYuan,
+            channel: "stall",
+            at: Date.now(),
+          };
+          return { ...s, sales: [row, ...s.sales] };
+        });
       },
       requestOrdering(stallId) {
         setSnap((s) => ({
@@ -357,29 +304,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           })
           .filter((row): row is NonNullable<typeof row> => row !== null);
         if (items.length === 0) return null;
-        const id = `o-${Date.now()}`;
+        const id = newId("o");
         const totalYuan = items.reduce((sum, row) => sum + row.priceYuan * row.qty, 0);
-        const pickupNo = String((snap.orders ?? []).filter((row) => row.stallId === stallId).length + 1).padStart(3, "0");
-        const order: Order = {
-          id,
-          stallId,
-          vendorName: stall.vendorName,
-          items,
-          totalYuan,
-          pickupNo,
-          slotNo: formatSlotNo(stall.lotSlot),
-          status: "placed",
-          at: Date.now(),
-        };
-        const sales: Sale[] = items.map((row) => ({
-          id: `sale-${id}-${row.dishId}`,
-          stallId,
-          dishName: row.qty > 1 ? `${row.name} ×${row.qty}` : row.name,
-          priceYuan: row.priceYuan * row.qty,
-          channel: "mini",
-          at: order.at,
-        }));
-        setSnap((s) => ({ ...s, orders: [order, ...(s.orders ?? [])], sales: [...sales, ...s.sales] }));
+        const at = Date.now();
+        setSnap((s) => {
+          const pickupNo = String(s.orders.filter((row) => row.stallId === stallId).length + 1).padStart(3, "0");
+          const order: Order = {
+            id,
+            stallId,
+            vendorName: stall.vendorName,
+            items,
+            totalYuan,
+            pickupNo,
+            slotNo: formatSlotNo(stall.lotSlot),
+            status: "placed",
+            at,
+          };
+          const sales: Sale[] = items.map((row) => ({
+            id: `sale-${id}-${row.dishId}`,
+            stallId,
+            dishName: row.qty > 1 ? `${row.name} ×${row.qty}` : row.name,
+            priceYuan: row.priceYuan * row.qty,
+            channel: "mini",
+            at,
+          }));
+          return { ...s, orders: [order, ...s.orders], sales: [...sales, ...s.sales] };
+        });
         return id;
       },
       pauseOrdering(stallId, paused) {
@@ -391,17 +341,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }));
       },
       markOrder(orderId, status) {
-        setSnap((s) => {
-          const current = (s.orders ?? []).find((row) => row.id === orderId);
-          if (!current) return s;
-          const allowed =
-            (current.status === "placed" && status === "ready") || (current.status === "ready" && status === "picked");
-          if (!allowed) return s;
-          return {
-            ...s,
-            orders: s.orders.map((row) => (row.id === orderId ? { ...row, status } : row)),
-          };
-        });
+        setSnap((cur) => rules.markOrder(cur, orderId, status));
       },
       markArrived(stallId) {
         setSnap((s) => ({
@@ -414,67 +354,43 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }));
       },
       markNoShow(stallId) {
-        setSnap((s) => {
-          const target = s.stalls.find((row) => row.id === stallId);
-          const venue = s.venues.find((v) => v.id === target?.venueId);
-          if (!target || !venue || !target.allottedToday) return s;
-          const live = (s.orders ?? []).some(
-            (row) => row.stallId === stallId && (row.status === "placed" || row.status === "ready"),
-          );
-          if (live) return s;
-          const stalls = s.stalls.map((row) =>
-            row.id === stallId
-              ? {
-                  ...row,
-                  signedUpToday: false,
-                  allottedToday: false,
-                  signedUpAt: 0,
-                  arrivedToday: false,
-                  noShowToday: true,
-                  lotSlot: 0,
-                  lotPlotId: "",
-                }
-              : row,
-          );
-          return { ...s, stalls: allocate(stalls, venue) };
-        });
+        setSnap((cur) => rules.markNoShow(cur, stallId));
       },
       addReview(stallId, stars, note, ateHere = false) {
-        const stall = snap.stalls.find((row) => row.id === stallId);
-        const score = Math.min(5, Math.max(1, Math.round(stars)));
-        if (!stall || !canLeaveReview(stall, snap.orders ?? [], ateHere)) return;
-        const row: Review = {
-          id: `r-${Date.now()}`,
-          stallId,
-          stars: score,
-          note: note.trim() || "到摊吃过。",
-          nick: "路过的人",
-          at: Date.now(),
-        };
-        setSnap((s) => ({ ...s, reviews: [row, ...(s.reviews ?? [])] }));
+        setSnap((s) => {
+          const stall = s.stalls.find((row) => row.id === stallId);
+          const score = Math.min(5, Math.max(1, Math.round(stars)));
+          if (!stall || !canLeaveReview(stall, s.orders, ateHere)) return s;
+          const row: Review = {
+            id: newId("r"),
+            stallId,
+            stars: score,
+            note: note.trim() || "到摊吃过。",
+            nick: s.consumerName,
+            consumerId: s.consumerId,
+            at: Date.now(),
+          };
+          return { ...s, reviews: [row, ...s.reviews] };
+        });
       },
       addDispute(stallId, note) {
         const text = note.trim();
-        const stall = snap.stalls.find((row) => row.id === stallId);
-        if (!text || !stall) return;
-        const row: Dispute = {
-          id: `n-${Date.now()}`,
-          stallId,
-          vendorName: stall.vendorName,
-          note: text,
-          at: Date.now(),
-        };
-        setSnap((s) => ({ ...s, disputes: [row, ...(s.disputes ?? [])] }));
+        if (!text) return;
+        setSnap((s) => {
+          const stall = s.stalls.find((row) => row.id === stallId);
+          if (!stall) return s;
+          const row: Dispute = {
+            id: newId("n"),
+            stallId,
+            vendorName: stall.vendorName,
+            note: text,
+            at: Date.now(),
+          };
+          return { ...s, disputes: [row, ...s.disputes] };
+        });
       },
       refundOrder(orderId) {
-        setSnap((s) => {
-          const current = (s.orders ?? []).find((row) => row.id === orderId);
-          if (!current || current.status === "picked" || current.status === "refunded") return s;
-          return {
-            ...s,
-            orders: s.orders.map((row) => (row.id === orderId ? { ...row, status: "refunded" } : row)),
-          };
-        });
+        setSnap((cur) => rules.refundOrder(cur, orderId));
       },
     }),
     [snap, role, hydrated],

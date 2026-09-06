@@ -17,6 +17,7 @@ export default function StallPage() {
   const [stars, setStars] = useState(5);
   const [note, setNote] = useState("");
   const [ateHere, setAteHere] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const menu = useMemo(
     () => dishes.filter((d) => d.stallId === stall?.id && d.onTonight),
@@ -35,7 +36,7 @@ export default function StallPage() {
   }
 
   const canOrder = canTakeMiniOrder(stall);
-  const canReview = canLeaveReview(stall, orders ?? [], ateHere);
+  const canReview = canLeaveReview(stall, orders, ateHere);
   const paused = stall.licenseTier === "ordering" && stall.orderingPaused;
   const picks = menu
     .map((d) => ({ dishId: d.id, qty: qty[d.id] ?? 0, name: d.name, priceYuan: d.priceYuan }))
@@ -52,11 +53,17 @@ export default function StallPage() {
   const shop = stall;
 
   function submit() {
+    if (submitting) return;
+    setSubmitting(true);
     const orderId = placeOrder(
       shop.id,
       picks.map((row) => ({ dishId: row.dishId, qty: row.qty })),
     );
-    if (orderId) router.push(`/orders/${orderId}`);
+    if (orderId) {
+      router.push(`/orders/${orderId}`);
+      return;
+    }
+    setSubmitting(false);
   }
 
   return (
@@ -162,10 +169,10 @@ export default function StallPage() {
             </Btn>
           </div>
         )}
-        {(reviews ?? []).filter((row) => row.stallId === stall.id).length === 0 ? (
+        {reviews.filter((row) => row.stallId === stall.id).length === 0 ? (
           <Empty>还没人评。吃过再写。</Empty>
         ) : (
-          (reviews ?? [])
+          reviews
             .filter((row) => row.stallId === stall.id)
             .map((row) => (
               <Cell key={row.id} end={`${row.stars} 星`}>
@@ -181,8 +188,8 @@ export default function StallPage() {
             <p className="text-[13px] text-[var(--muted)]">一单一摊 · 到摊取</p>
             <p className="font-display text-2xl leading-none">{total} 元</p>
           </div>
-          <Btn kind="lacquer" disabled={picks.length === 0} onClick={submit}>
-            下单
+          <Btn kind="lacquer" disabled={picks.length === 0 || submitting} onClick={submit}>
+            {submitting ? "下单中" : "下单"}
           </Btn>
         </div>
       ) : (

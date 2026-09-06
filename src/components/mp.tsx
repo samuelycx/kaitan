@@ -136,9 +136,10 @@ export function LotMap({
             );
             if (href) {
               return (
-                <a key={plot.id} href={href} className="floor-hit">
+                <Link key={plot.id} href={href} className="floor-hit">
+                  <title>{title}</title>
                   {body}
-                </a>
+                </Link>
               );
             }
             if (canPick && pickFor) {
