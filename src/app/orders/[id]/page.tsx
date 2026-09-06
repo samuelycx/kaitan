@@ -4,8 +4,9 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { Btn, Card, CardHead, Cell, Empty, LotMap, Page } from "@/components/mp";
 import { canLeaveReview } from "@/lib/lot";
+import { ordersAhead } from "@/lib/queue";
 import { useStore } from "@/lib/store";
-import { ORDER_STATUS, dishPhoto, orderThumb, stallCover, tonightBooths } from "@/lib/types";
+import { ORDER_STATUS, cstTime, dishPhoto, orderThumb, stallCover, tonightBooths } from "@/lib/types";
 
 function pickupShare(order: {
   vendorName: string;
@@ -44,6 +45,7 @@ export default function OrderDetailPage() {
   }
 
   const ticket = order;
+  const ahead = ordersAhead(orders, order);
 
   async function copyPickup() {
     const text = pickupShare({ ...ticket, slotNo });
@@ -58,35 +60,40 @@ export default function OrderDetailPage() {
 
   return (
     <Page>
-      <div className="pickup-ticket">
-        <img src={stall ? stallCover(stall) : orderThumb(order, dishes)} alt="" />
-        <div className="pickup-body">
-          <p>
-            取餐号 · {slotNo}号摊 · {order.vendorName}
+      <div className="pickup-screen">
+        <div className="pickup-main">
+          <p className="pickup-where">
+            {order.vendorName} · {slotNo}
           </p>
-          <strong>{order.pickupNo}</strong>
-          <p className="stamp">{ORDER_STATUS[order.status]}</p>
+          <p className="pickup-no">{order.pickupNo}</p>
+          {order.status === "placed" ? (
+            <p className="pickup-ahead">
+              <i className="tonight-dot" />
+              {ahead > 0 ? `前面还有 ${ahead} 单` : "马上就轮到"}
+            </p>
+          ) : (
+            <p className="pickup-ahead">
+              <i className="tonight-dot" />
+              {ORDER_STATUS[order.status]}
+            </p>
+          )}
+          <p className="pickup-hint">叫号后到 {slotNo} 号位取</p>
+        </div>
+        <div className="pickup-slip">
+          {order.items.map((item) => (
+            <p key={item.dishId} className="slip-line">
+              <span>
+                {item.name} × {item.qty}
+              </span>
+              <span>{item.priceYuan * item.qty} 元</span>
+            </p>
+          ))}
+          <p className="slip-foot">
+            <span>{cstTime(order.at)} 下单 · 到摊付</span>
+            <strong>{order.totalYuan} 元</strong>
+          </p>
         </div>
       </div>
-      <Card>
-        {order.items.map((item) => {
-          const dish = dishes.find((d) => d.id === item.dishId);
-          return (
-            <Cell
-              key={item.dishId}
-              thumb={dish ? dishPhoto(dish) : orderThumb({ items: [item] }, dishes)}
-              end={`${item.priceYuan * item.qty} 元`}
-            >
-              <p>
-                {item.name} ×{item.qty}
-              </p>
-            </Cell>
-          );
-        })}
-        <Cell end={`${order.totalYuan} 元`}>
-          <p>合计</p>
-        </Cell>
-      </Card>
       <Card>
         <Cell
           end={

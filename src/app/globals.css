@@ -765,241 +765,425 @@ body {
   opacity: 0.62;
 }
 
+
 /*
- * 顾客端 1a：名单在前，场图收成一条横带，点单像一张票，取餐号是墨底大字。
- * 贯穿这几屏的是同一件事——摊主到没到场，是第一眼要看见的信息，
- * 所以到场状态在这里是一盏灯：亮灯实心朱红，备摊空框，不出灰的。
+ * 顾客端 1a：名单优先，亮灯的在上面。
+ * 到场状态不靠文字标签说，而是靠它排在哪一段、位号牌是实心还是空心、
+ * 整行有没有褪下去——一眼扫过去就知道今晚谁能吃。
  */
 
-.lamp {
-  display: inline-block;
-  width: 9px;
-  height: 9px;
-  flex-shrink: 0;
-  border: 1.5px solid var(--muted);
+.tonight-head {
+  padding: 0 2px 14px;
+  border-bottom: 1px solid #ddcdac;
+}
+
+.tonight-head h2 {
+  font-family: var(--font-display), "Noto Serif SC", serif;
+  font-size: 27px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.03em;
+}
+
+.tonight-head .tonight-tally {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.tonight-head .tonight-tally strong {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.tonight-dot {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: transparent;
-  vertical-align: baseline;
-}
-
-.lamp.is-open {
-  border-color: var(--lacquer);
   background: var(--lacquer);
+  flex-shrink: 0;
 }
 
-.lamp.is-waiting {
-  border-color: var(--ink);
-  background: transparent;
+/* 场图收成一条 56px 的入口，点进去才是整张图。名单才是主角。 */
+.floor-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  margin-top: 14px;
+  padding: 0 12px;
+  border: 1px solid #c9b795;
+  border-radius: 4px;
+  background: #ece0c6;
+  color: inherit;
 }
 
-.lamp.is-packed {
-  border-color: color-mix(in srgb, var(--ink) 30%, transparent);
-  background: color-mix(in srgb, var(--ink) 22%, transparent);
+.floor-entry .floor-entry-text {
+  flex: 1;
+  min-width: 0;
 }
 
-/* 三段之间不是留白，是切开：每段自报家门，说清这一段的摊是什么状态。 */
+.floor-entry .floor-entry-text b {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.floor-entry .floor-entry-text small {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.floor-entry .floor-entry-go {
+  font-size: 15px;
+  color: var(--muted);
+}
+
+/* 段头：一个楷体小标题，一条穿过去的细线，右边一句人话。 */
 .band {
   display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  margin: 1.15rem 0 0.5rem;
-  padding: 0 0.2rem 0.3rem;
-  border-bottom: 1.5px solid color-mix(in srgb, var(--ink) 78%, transparent);
+  align-items: center;
+  gap: 8px;
+  padding: 16px 2px 10px;
 }
 
 .band h3 {
-  margin: 0;
   font-family: var(--font-display), "Noto Serif SC", serif;
-  font-size: 1.02rem;
-  line-height: 1;
-}
-
-.band small {
-  font-size: 11px;
-  letter-spacing: 0.14em;
+  font-size: 15px;
+  font-weight: 700;
   color: var(--muted);
 }
 
-.band .band-count {
-  margin-left: auto;
-  font-family: var(--font-display), "Noto Serif SC", serif;
-  font-size: 1.02rem;
-  line-height: 1;
+.band.is-open h3 {
   color: var(--lacquer);
 }
 
-/* 场图不再占半屏：横着一条，从场口往里排，点一格就是那个摊。 */
-.floor-band {
-  padding: 0.5rem 0 0.55rem;
+.band .band-rule {
+  flex: 1;
+  height: 1px;
+  background: #ddcdac;
 }
 
-.floor-band-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  padding: 0 0.9rem 0.45rem;
-  font-size: 11px;
-  letter-spacing: 0.14em;
+.band small {
+  font-size: 12px;
   color: var(--muted);
 }
 
-.floor-band-rail {
+/* 名单行。图在左，名字加位号牌在右，最后一行是价钱和排队。 */
+.stall-row {
   display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  padding: 0 0.9rem 0.15rem;
-  scrollbar-width: none;
-}
-
-.floor-band-rail::-webkit-scrollbar {
-  display: none;
-}
-
-.floor-cell {
-  position: relative;
-  flex: 0 0 auto;
-  width: 58px;
-  padding: 0.3rem 0.3rem 0.35rem;
-  border: 1.5px solid color-mix(in srgb, var(--ink) 26%, transparent);
-  background: color-mix(in srgb, var(--paper) 70%, white);
+  gap: 12px;
+  padding: 14px 2px;
+  border-bottom: 1px solid #e4d6b8;
   color: inherit;
-  text-decoration: none;
-  text-align: center;
 }
 
-.floor-cell img {
-  display: block;
-  width: 100%;
-  height: 30px;
+.stall-row img {
+  width: 74px;
+  height: 74px;
+  flex-shrink: 0;
+  border-radius: 3px;
   object-fit: cover;
 }
 
-.floor-cell .floor-cell-no {
-  display: block;
-  font-family: var(--font-display), "Noto Serif SC", serif;
-  font-size: 0.92rem;
-  line-height: 1.35;
+.stall-row .stall-row-body {
+  flex: 1;
+  min-width: 0;
 }
 
-.floor-cell .floor-cell-name {
-  display: block;
+.stall-row .stall-row-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stall-row .stall-row-name h4 {
+  font-family: var(--font-display), "Noto Serif SC", serif;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.1;
   overflow: hidden;
-  font-size: 10px;
-  line-height: 1.3;
-  white-space: nowrap;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stall-row .stall-row-cat {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stall-row .stall-row-foot {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.stall-row .stall-row-foot small {
+  font-size: 12px;
+  font-weight: 400;
   color: var(--muted);
 }
 
-.floor-cell.is-open {
-  border-color: var(--lacquer);
+/* 备摊：整行褪一层，图去色，位号牌变空心。没到场就是没到场。 */
+.stall-row.is-waiting,
+.stall-row.is-packed {
+  opacity: 0.62;
 }
 
-.floor-cell.is-empty .floor-cell-name {
-  color: color-mix(in srgb, var(--ink) 38%, transparent);
+.stall-row.is-waiting img,
+.stall-row.is-packed img {
+  filter: grayscale(1);
 }
 
-.floor-cell .lamp {
+/* 位号牌：亮灯实心朱红，没到场是空心。 */
+.plot-chip {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border: 1px solid var(--lacquer);
+  border-radius: 2px;
+  background: var(--lacquer);
+  color: var(--paper);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.plot-chip.is-off {
+  border-color: #c9b795;
+  background: transparent;
+  color: var(--muted);
+}
+
+/* 摊页：封面上压一块纸色的名字。 */
+.stall-cover {
+  position: relative;
+  margin: -12px -14px 0;
+}
+
+.stall-cover img {
+  display: block;
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+}
+
+.stall-cover .stall-cover-name {
   position: absolute;
-  top: 4px;
-  right: 4px;
-}
-
-/* 点单这一屏是一张票：菜名在左，价钱在右，中间用点连起来。 */
-.receipt-row {
+  left: 16px;
+  bottom: 14px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
+  gap: 8px;
 }
 
-.receipt-row + .receipt-row {
-  border-top: 1px dashed color-mix(in srgb, var(--ink) 22%, transparent);
-}
-
-.receipt-row .receipt-name {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.receipt-row .receipt-dots {
-  flex: 1 1 auto;
-  min-width: 12px;
-  border-bottom: 1px dotted color-mix(in srgb, var(--ink) 35%, transparent);
-  transform: translateY(-3px);
-}
-
-.receipt-row .receipt-price {
-  flex: 0 0 auto;
+.stall-cover .stall-cover-name h2 {
+  padding: 2px 10px;
+  background: var(--paper);
   font-family: var(--font-display), "Noto Serif SC", serif;
-  font-size: 0.98rem;
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1.15;
 }
 
-.receipt-foot {
+.stall-stats {
+  display: flex;
+  gap: 18px;
+  padding: 14px 2px;
+  border-bottom: 1px solid #ddcdac;
+}
+
+.stall-stats div p:first-child {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.stall-stats div p:last-child {
+  margin-top: 2px;
+  font-family: var(--font-display), "Noto Serif SC", serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+/* 点单：菜名在上，价钱在下，一行一道，虚线隔开。 */
+.dish-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 2px;
+  border-bottom: 1px dashed #cdbc9c;
+}
+
+.dish-line img {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  border-radius: 3px;
+  object-fit: cover;
+}
+
+.dish-line .dish-line-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.dish-line .dish-line-body p:first-child {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.dish-line .dish-line-body p:last-child {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.dish-line .mp-step button {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #c9b795;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.dish-line .mp-step button.is-add {
+  border-color: var(--lacquer);
+  background: var(--lacquer);
+  color: var(--paper);
+}
+
+.dish-line .mp-step em {
+  font-family: var(--font-display), "Noto Serif SC", serif;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* 结账条贴在屏底，不跟着页面滚。 */
+.order-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 14px;
-  border-top: 1.5px solid color-mix(in srgb, var(--ink) 78%, transparent);
+  margin: 14px -14px -18px;
+  padding: 14px 20px 20px;
+  border-top: 1px solid #c9b795;
+  background: #ece0c6;
 }
 
-/* 取餐号：墨底，大字，隔着摊子也认得出。 */
-.pickup-ticket {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--paper);
+.order-bar .order-bar-sum {
+  font-family: var(--font-display), "Noto Serif SC", serif;
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
 }
 
-.pickup-ticket img {
-  aspect-ratio: 16 / 5;
-  opacity: 0.55;
-}
-
-.pickup-ticket p {
-  color: color-mix(in srgb, var(--paper) 70%, transparent);
-}
-
-.pickup-ticket strong {
-  font-size: 5rem;
-  letter-spacing: 0.16em;
-  color: var(--paper);
-}
-
-.pickup-ticket .stamp {
-  border-color: color-mix(in srgb, var(--paper) 78%, transparent);
-  color: var(--paper);
-}
-
-.booth-state {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-
-.floor-cell-blank {
+.order-bar small {
   display: block;
-  height: 30px;
-  background: repeating-linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--ink) 7%, transparent) 0 4px,
-    transparent 4px 8px
-  );
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 400;
+  font-family: var(--font-sans);
+  color: var(--muted);
 }
 
-.receipt-row .cell-thumb {
-  width: 44px;
-  height: 44px;
+.order-bar .mp-btn {
+  padding: 14px 28px;
+  min-height: 48px;
+  font-family: var(--font-display), "Noto Serif SC", serif;
+  font-size: 16px;
+  font-weight: 700;
 }
 
-.receipt-row .mp-step {
-  gap: 0.3rem;
+/* 取餐号：整屏墨底，只有号码。底下压一张纸质小票。 */
+.pickup-screen {
+  margin: -12px -14px 0;
+  min-height: 600px;
+  display: flex;
+  flex-direction: column;
+  background: var(--ink);
 }
 
-.receipt-row .mp-step button {
-  width: 24px;
-  height: 24px;
+.pickup-screen .pickup-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 48px 20px;
+  text-align: center;
+}
+
+.pickup-screen .pickup-where {
+  font-size: 13px;
+  letter-spacing: 0.3em;
+  color: #8b7a63;
+}
+
+.pickup-screen .pickup-no {
+  font-family: var(--font-display), "Noto Serif SC", serif;
+  font-size: 108px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--paper);
+}
+
+.pickup-screen .pickup-ahead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  color: var(--paper);
+}
+
+.pickup-screen .pickup-hint {
+  font-size: 13px;
+  color: #8b7a63;
+}
+
+.pickup-screen .pickup-slip {
+  background: var(--paper);
+  padding: 18px 20px 24px;
+  color: var(--ink);
+}
+
+.pickup-screen .pickup-slip .slip-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed #cdbc9c;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.pickup-screen .pickup-slip .slip-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.pickup-screen .pickup-slip .slip-foot strong {
+  font-family: var(--font-display), "Noto Serif SC", serif;
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--ink);
 }

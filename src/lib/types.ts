@@ -278,6 +278,16 @@ export type DayRecord = {
 const CST_OFFSET_MS = 8 * 60 * 60 * 1000;
 
 /** The trading day an instant falls on, in CST, as 2026-09-06. */
+/** Clock time in CST, which is the only clock the venue runs on. */
+export function cstTime(at: number) {
+  return new Date(at).toLocaleTimeString("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
 export function cstDate(at: number) {
   return new Date(at + CST_OFFSET_MS).toISOString().slice(0, 10);
 }

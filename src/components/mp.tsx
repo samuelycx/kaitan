@@ -91,81 +91,99 @@ export function Btn({
   return <button type="button" className={`mp-btn mp-btn-${kind} ${className}`} {...props} />;
 }
 
-/**
- * 到场状态，一盏灯。摊主到没到场是顾客白跑一趟与否的分界，
- * 所以它不藏在文字里：亮灯是人已经站在摊后，空框是报了名还没到，灰的是收了摊。
- */
-export function Lamp({ state }: { state: string }) {
-  return <i className={`lamp is-${state}`} aria-hidden />;
+/** 位号牌。亮灯的实心朱红，没到场的空心——牌子本身就说了到没到。 */
+export function PlotChip({ no, on = true }: { no: string; on?: boolean }) {
+  return <span className={`plot-chip${on ? "" : " is-off"}`}>{no}</span>;
 }
 
-/** 一段的抬头。名单分三段，每段自己说清楚这一段的摊是什么状态。 */
-export function Band({ title, note, count }: { title: string; note?: string; count?: number }) {
+/** 段头：楷体小标题、一条穿过去的细线、右边一句人话。 */
+export function Band({ title, note, tone }: { title: string; note?: string; tone?: "open" }) {
   return (
-    <div className="band">
+    <div className={`band${tone === "open" ? " is-open" : ""}`}>
       <h3>{title}</h3>
+      <span className="band-rule" />
       {note && <small>{note}</small>}
-      {count !== undefined && <span className="band-count">{count}</span>}
     </div>
   );
 }
 
 /**
- * 场图收成一条横带，从场口往里排。顾客先看名单挑摊，再顺着这条带子
- * 找位置，所以它不该占掉半屏——一眼扫过去知道哪几格亮着就够了。
+ * 场图在名单页上只占一行。顾客先在名单里挑摊，挑定了才需要找位置，
+ * 所以整张图收在这道门后面，不跟名单抢地方。
  */
-export function FloorBand({
-  floor,
-  booths,
-  hrefFor,
-  highlightId,
-}: {
-  floor?: VenueFloor;
-  booths: { slotNo: string; cover: string; name: string; state: string; stallId?: string; plotId?: string }[];
-  hrefFor?: (stallId: string) => string;
-  highlightId?: string;
-}) {
-  if (!floor?.plots.length) return null;
-  const byPlot = new Map(booths.map((row) => [row.plotId || "", row]));
-  const taken = booths.filter((row) => row.state === "open").length;
-  // Laid out by plot number, which is the order the numbers are painted on the
-  // ground — reading the strip is then the same walk as walking in from the gate.
-  const plots = [...floor.plots].sort((a, b) => a.no.localeCompare(b.no));
+export function FloorEntry({ href, note }: { href: string; note: string }) {
   return (
-    <div className="floor-band">
-      <div className="floor-band-head">
-        <span>场图 · {floor.gate.label}从这边进</span>
-        <span>亮着 {taken} 格</span>
-      </div>
-      <div className="floor-band-rail">
-        {plots.map((plot) => {
-          const booth = byPlot.get(plot.id);
-          const href = booth?.stallId && hrefFor ? hrefFor(booth.stallId) : undefined;
-          const mine = Boolean(booth && highlightId && booth.stallId === highlightId);
-          const cls = `floor-cell${booth ? ` is-${booth.state}` : " is-empty"}${mine ? " is-me" : ""}`;
-          const inner = (
+    <Link href={href} className="floor-entry">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden>
+        {[0, 1, 2].map((row) =>
+          [0, 1, 2].map((col) => (
+            <rect
+              key={`${row}-${col}`}
+              x={col * 12}
+              y={row * 12}
+              width="10"
+              height="10"
+              fill={(row + col) % 2 === 0 ? "#c23b22" : "#c9b795"}
+            />
+          )),
+        )}
+      </svg>
+      <span className="floor-entry-text">
+        <b>看场图找位置</b>
+        <small>{note}</small>
+      </span>
+      <span className="floor-entry-go">›</span>
+    </Link>
+  );
+}
+
+/**
+ * 名单里的一摊。到没到场不写成标签：到了就是正常一行，没到场整行褪下去、
+ * 图去色、位号牌变空心，末行改说报名时间。
+ */
+export function StallRow({
+  href,
+  cover,
+  name,
+  plotNo,
+  category,
+  fromYuan,
+  queue,
+  state,
+  waitNote,
+}: {
+  href: string;
+  cover: string;
+  name: string;
+  plotNo: string;
+  category: string;
+  fromYuan?: number;
+  queue?: string;
+  state: string;
+  waitNote?: string;
+}) {
+  const on = state === "open";
+  return (
+    <Link href={href} className={`stall-row is-${state}`}>
+      <img src={cover} alt="" />
+      <div className="stall-row-body">
+        <div className="stall-row-name">
+          <h4>{name}</h4>
+          <PlotChip no={plotNo} on={on} />
+        </div>
+        <p className="stall-row-cat">{category}</p>
+        <div className="stall-row-foot">
+          {on ? (
             <>
-              {booth ? <img src={booth.cover} alt="" /> : <span className="floor-cell-blank" />}
-              {booth && <Lamp state={booth.state} />}
-              <span className="floor-cell-no">{plot.no}</span>
-              <span className="floor-cell-name">{booth ? booth.name : plotUseLabel(plot.use)}</span>
+              {fromYuan !== undefined && <span>{fromYuan} 元起</span>}
+              {queue && <small>{queue}</small>}
             </>
-          );
-          if (href) {
-            return (
-              <Link key={plot.id} href={href} className={cls}>
-                {inner}
-              </Link>
-            );
-          }
-          return (
-            <div key={plot.id} className={cls}>
-              {inner}
-            </div>
-          );
-        })}
+          ) : (
+            <small>{waitNote}</small>
+          )}
+        </div>
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -282,9 +300,7 @@ export function StallPoster({
       </div>
       <div className="stall-poster-body">
         <p className="stall-poster-cat">{category}</p>
-        <h3>
-          {stateKind && <Lamp state={stateKind} />} {name}
-        </h3>
+        <h3>{name}</h3>
         {rating && <p className="stall-poster-rate">{rating}</p>}
         {blurb && <p className="stall-poster-blurb">{blurb}</p>}
         {dishes.length > 0 && (

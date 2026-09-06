@@ -1,56 +1,50 @@
 "use client";
 
 import { useState } from "react";
-import { Band, Btn, Card, Cell, Empty, FloorBand, Lead, Page, StallPoster, Stats } from "@/components/mp";
+import { Band, Btn, Card, Cell, Empty, FloorEntry, Page, StallRow } from "@/components/mp";
 import { useStore } from "@/lib/store";
-import {
-  BOOTH_STATE_LABEL,
-  boothState,
-  canTakeMiniOrder,
-  dishPhoto,
-  ratingLabel,
-  stallCover,
-  stallPayLabel,
-  tonightBooths,
-} from "@/lib/types";
+import { stallQueue } from "@/lib/queue";
+import { boothState, canTakeMiniOrder, stallCover, stallPayLabel, tonightBooths } from "@/lib/types";
 
+/**
+ * 今晚名单。分三段：已亮灯的能吃，备摊的报了名还没到，今晚不出的别白跑。
+ * 排序就是这个顺序，所以顾客不用读状态字，从上往下看就行。
+ */
 export default function Home() {
-  const { venues, stalls, dishes, reviews, isSignupOpen } = useStore();
+  const { venues, stalls, dishes, orders, isSignupOpen } = useStore();
   const [copied, setCopied] = useState(false);
   const venue = venues[0];
   if (!venue) return <p>还没有经营点。</p>;
 
   const booths = tonightBooths(stalls.filter((s) => s.venueId === venue.id), venue.floor);
-  // Signing up is not the same as standing behind the counter, so the list is
-  // grouped by what is actually true right now rather than by who booked.
   const open = booths.filter(({ stall }) => boothState(stall) === "open");
   const waiting = booths.filter(({ stall }) => boothState(stall) === "waiting");
   const packed = booths.filter(({ stall }) => boothState(stall) === "packed");
-  const orderable = open.filter(({ stall }) => canTakeMiniOrder(stall));
-  const walkup = open.filter(({ stall }) => !canTakeMiniOrder(stall));
 
-  function posters(rows: typeof booths) {
-    return rows.map(({ stall, slotNo }) => {
+  function rows(list: typeof booths) {
+    return list.map(({ stall, slotNo }) => {
       const menu = dishes.filter((d) => d.stallId === stall.id && d.onTonight);
+      const cheapest = menu.length > 0 ? Math.min(...menu.map((d) => d.priceYuan)) : undefined;
+      const { ahead, minutes } = stallQueue(orders, stall.id);
+      const state = boothState(stall);
       return (
-        <StallPoster
+        <StallRow
           key={stall.id}
           href={`/stall/${stall.id}`}
           cover={stallCover(stall)}
-          slotNo={slotNo}
           name={stall.vendorName}
-          category={stall.category}
-          blurb={stall.blurb}
-          pay={stallPayLabel(stall)}
-          state={BOOTH_STATE_LABEL[boothState(stall)]}
-          stateKind={boothState(stall)}
-          rating={ratingLabel(reviews, stall.id)}
-          dishes={menu.map((d) => ({
-            id: d.id,
-            name: d.name,
-            priceYuan: d.priceYuan,
-            photo: dishPhoto(d),
-          }))}
+          plotNo={slotNo}
+          category={[stall.category, stall.blurb].filter(Boolean).join(" · ")}
+          fromYuan={cheapest}
+          queue={
+            canTakeMiniOrder(stall)
+              ? ahead > 0
+                ? `排 ${ahead} 单 · 约 ${minutes} 分钟`
+                : "现在不用排"
+              : stallPayLabel(stall)
+          }
+          state={state}
+          waitNote={state === "waiting" ? `报了 ${slotNo} 位 · 人还没到` : "今晚已经收摊"}
         />
       );
     });
@@ -58,61 +52,19 @@ export default function Home() {
 
   return (
     <Page>
-      <Lead kicker={isSignupOpen(venue.id) ? `今日 ${venue.signupBy} 前报名` : "今日报名已截止"} title={venue.name}>
-        {venue.open}–{venue.close} · {venue.address}。摊主到场了才算开摊。
-      </Lead>
-      <Stats
-        items={[
-          { label: "已开摊", value: venue.closedToday ? "停市" : open.length },
-          { label: "还没开摊", value: venue.closedToday ? "—" : waiting.length },
-          { label: "可点单", value: venue.closedToday ? "—" : orderable.length },
-        ]}
-      />
-      {!venue.closedToday && (
-        <Card>
-          <FloorBand
-            floor={venue.floor}
-            hrefFor={(id) => `/stall/${id}`}
-            booths={booths.map(({ stall, slotNo, plot }) => ({
-              slotNo,
-              cover: stallCover(stall),
-              name: stall.vendorName,
-              state: boothState(stall),
-              stallId: stall.id,
-              plotId: plot?.id || stall.lotPlotId,
-            }))}
-          />
-        </Card>
-      )}
-      {!venue.closedToday && booths.length > 0 && (
-        <Card>
-          <Cell
-            end={
-              <Btn
-                kind="ink"
-                onClick={async () => {
-                  const names = open
-                    .map(({ stall, slotNo }) => `${slotNo}号 ${stall.vendorName} ${stallPayLabel(stall)}`)
-                    .join(" · ");
-                  const text = `今晚${venue.name} ${venue.open}–${venue.close} · ${names} · 到摊取不配送`;
-                  try {
-                    await navigator.clipboard.writeText(text);
-                    setCopied(true);
-                    window.setTimeout(() => setCopied(false), 1600);
-                  } catch {
-                    setCopied(false);
-                  }
-                }}
-              >
-                {copied ? "已复制" : "分享今晚"}
-              </Btn>
-            }
-          >
-            <p>发给附近的人</p>
-            <p className="text-[13px] text-[var(--muted)]">只带已经开摊的</p>
-          </Cell>
-        </Card>
-      )}
+      <header className="tonight-head">
+        <h2>今晚名单</h2>
+        <p className="tonight-tally">
+          <i className="tonight-dot" />
+          <strong>{venue.closedToday ? "今日停市" : `${open.length} 家已亮灯`}</strong>
+          {!venue.closedToday && ` · ${waiting.length} 家备摊 · ${packed.length} 家不出`}
+        </p>
+        <p className="mt-2 text-[12px] text-[var(--muted)]">
+          {venue.name} {venue.open}–{venue.close} ·{" "}
+          {isSignupOpen(venue.id) ? `今日 ${venue.signupBy} 前报名` : "今日报名已截止"}
+        </p>
+        {!venue.closedToday && <FloorEntry href="/floor" note="红格=已亮灯" />}
+      </header>
       {venue.closedToday ? (
         <Card>
           <Empty>今日停市。</Empty>
@@ -123,35 +75,47 @@ export default function Home() {
         </Card>
       ) : (
         <>
-          {orderable.length > 0 && (
-            <>
-              <Band title="已开摊 · 可点单" note="到摊取" count={orderable.length} />
-              {posters(orderable)}
-            </>
-          )}
-          {walkup.length > 0 && (
-            <>
-              <Band title="已开摊 · 到摊付" note="到摊看了再买" count={walkup.length} />
-              {posters(walkup)}
-            </>
-          )}
-          {open.length === 0 && (
-            <Card>
-              <Empty>今晚报了名的摊还没开。到场了才会出现在上面。</Empty>
-            </Card>
-          )}
+          <Band title="已亮灯" note="现在能吃" tone="open" />
+          {open.length === 0 ? <Empty>报了名的摊还没开。到场了才会出现在这里。</Empty> : rows(open)}
           {waiting.length > 0 && (
-            <div className="is-dim">
-              <Band title="还没开摊" note="报了名，人还没到" count={waiting.length} />
-              {posters(waiting)}
-            </div>
+            <>
+              <Band title="备摊中" note="报了名还没亮灯" />
+              {rows(waiting)}
+            </>
           )}
           {packed.length > 0 && (
-            <div className="is-dim">
-              <Band title="已收摊" note="今晚别白跑" count={packed.length} />
-              {posters(packed)}
-            </div>
+            <>
+              <Band title="今晚不出" note="别白跑" />
+              {rows(packed)}
+            </>
           )}
+          <Card>
+            <Cell
+              end={
+                <Btn
+                  kind="ink"
+                  onClick={async () => {
+                    const names = open
+                      .map(({ stall, slotNo }) => `${slotNo}号 ${stall.vendorName} ${stallPayLabel(stall)}`)
+                      .join(" · ");
+                    const text = `今晚${venue.name} ${venue.open}–${venue.close} · ${names} · 到摊取不配送`;
+                    try {
+                      await navigator.clipboard.writeText(text);
+                      setCopied(true);
+                      window.setTimeout(() => setCopied(false), 1600);
+                    } catch {
+                      setCopied(false);
+                    }
+                  }}
+                >
+                  {copied ? "已复制" : "分享今晚"}
+                </Btn>
+              }
+            >
+              <p>发给附近的人</p>
+              <p className="text-[13px] text-[var(--muted)]">只带已经亮灯的</p>
+            </Cell>
+          </Card>
         </>
       )}
     </Page>
