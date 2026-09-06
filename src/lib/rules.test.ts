@@ -1,15 +1,21 @@
 import { describe, expect, it } from "vitest";
 import {
+  autoPackUpAtClose,
+  claimFreedPlot,
   closeSignup,
+  markArrived,
+  markPackedUp,
   markNoShow,
   markOrder,
   openNextDay,
   refundOrder,
+  setPlotPreference,
   signUp,
+  signupOpenNow,
   withdraw,
 } from "./rules";
 import { canLeaveReview } from "./lot";
-import { canTakeMiniOrder, stallPayLabel } from "./types";
+import { boothState, canTakeMiniOrder, stallPayLabel } from "./types";
 import type { Order, Snapshot, Stall, Venue } from "./types";
 
 const VENUE_ID = "venue-xiang";
@@ -32,7 +38,10 @@ function stall(partial: Partial<Stall> & { id: string }): Stall {
     signedUpToday: false,
     allottedToday: false,
     arrivedToday: false,
+    packedUpToday: false,
     noShowToday: false,
+    plotPreference: "only",
+    lastPlotId: "",
     signedUpAt: 0,
     lotSlot: 0,
     lotPlotId: "",
@@ -95,6 +104,7 @@ function snapshot(stalls: Stall[], orders: Order[] = [], venue: Venue = VENUE): 
     organizerName: "管理员",
     consumerId: "c-me",
     consumerName: "顾客",
+    demoMinutes: 600,
   };
 }
 
@@ -248,10 +258,12 @@ describe("next trading day", () => {
 });
 
 describe("licence gate on mini-programme ordering", () => {
-  const allotted = { signedUpToday: true, allottedToday: true, lotPlotId: "p01" };
+  const allotted = { signedUpToday: true, allottedToday: true, arrivedToday: true, lotPlotId: "p01" };
 
-  it("lets a licensed stall that has a plot take orders", () => {
-    expect(canTakeMiniOrder(stall({ id: "a", licenseTier: "ordering", ...allotted }))).toBe(true);
+  it("lets a licensed stall that has opened take orders", () => {
+    expect(
+      canTakeMiniOrder(stall({ id: "a", licenseTier: "ordering", ...allotted, arrivedToday: true })),
+    ).toBe(true);
   });
 
   it("refuses a stall with only the view-only licence", () => {
@@ -289,5 +301,159 @@ describe("who may leave a review", () => {
     const shop = stall({ id: "a", licenseTier: "display" });
     expect(canLeaveReview(shop, [], true)).toBe(true);
     expect(canLeaveReview(shop, [], false)).toBe(false);
+  });
+});
+
+describe("到场状态", () => {
+  it("reads a stall that has a plot but has not shown up as not open yet", () => {
+    expect(boothState(stall({ id: "a", allottedToday: true }))).toBe("waiting");
+  });
+
+  it("opens the stall when the vendor taps arrived", () => {
+    const s = markArrived(snapshot([stall({ id: "a", allottedToday: true })]), "a", true);
+    expect(boothState(s.stalls[0])).toBe("open");
+  });
+
+  it("ignores an arrival tap from a stall that has no plot tonight", () => {
+    const s = snapshot([stall({ id: "a" })]);
+    expect(markArrived(s, "a", true).stalls[0].arrivedToday).toBe(false);
+  });
+
+  it("packs the stall up when the vendor taps it", () => {
+    const open = markArrived(snapshot([stall({ id: "a", allottedToday: true })]), "a", true);
+    expect(boothState(markPackedUp(open, "a").stalls[0])).toBe("packed");
+  });
+
+  it("refuses to pack up while an order is still waiting to be collected", () => {
+    const open = markArrived(
+      snapshot([stall({ id: "a", allottedToday: true })], [order({ id: "o-1", stallId: "a" })]),
+      "a",
+      true,
+    );
+    expect(boothState(markPackedUp(open, "a").stalls[0])).toBe("open");
+  });
+
+  it("packs everyone up once closing time passes, tap or no tap", () => {
+    const open = markArrived(snapshot([stall({ id: "a", allottedToday: true })]), "a", true);
+    const late = { ...open, demoMinutes: 22 * 60 + 30 };
+    expect(boothState(autoPackUpAtClose(late).stalls[0])).toBe("packed");
+  });
+
+  it("leaves stalls alone while the venue is still trading", () => {
+    const open = markArrived(snapshot([stall({ id: "a", allottedToday: true })]), "a", true);
+    const evening = { ...open, demoMinutes: 19 * 60 };
+    expect(boothState(autoPackUpAtClose(evening).stalls[0])).toBe("open");
+  });
+});
+
+describe("截止时间自动生效", () => {
+  it("takes sign-ups before the printed cutoff", () => {
+    expect(signupOpenNow({ ...snapshot([]), demoMinutes: 10 * 60 }, VENUE)).toBe(true);
+  });
+
+  it("stops taking sign-ups once the cutoff passes, with nobody pressing anything", () => {
+    const late = { ...snapshot([stall({ id: "a" })]), demoMinutes: 15 * 60 + 1 };
+    expect(signupOpenNow(late, VENUE)).toBe(false);
+    expect(signUp(late, "a", "p01", 1).stalls[0].signedUpToday).toBe(false);
+  });
+
+  it("still lets the organizer close early", () => {
+    const early = { ...snapshot([]), demoMinutes: 10 * 60 };
+    expect(signupOpenNow(early, { ...VENUE, signupOpen: false })).toBe(false);
+  });
+});
+
+describe("抢位落败后的偏好", () => {
+  it("keeps waiting for the exact plot when the vendor asked for that one only", () => {
+    const s = snapshot([
+      stall({ id: "a", signedUpToday: true, signedUpAt: 1, lotPlotId: "p01" }),
+      stall({ id: "b", signedUpToday: true, signedUpAt: 2, lotPlotId: "p01" }),
+    ]);
+    const after = closeSignup(s, VENUE_ID);
+    expect(after.stalls.find((row) => row.id === "b")?.allottedToday).toBe(false);
+  });
+
+  it("moves the loser onto another plot that fits when they said any plot will do", () => {
+    const s = snapshot([
+      stall({ id: "a", signedUpToday: true, signedUpAt: 1, lotPlotId: "p01" }),
+      stall({
+        id: "b",
+        signedUpToday: true,
+        signedUpAt: 2,
+        lotPlotId: "p01",
+        category: "烤串",
+        plotPreference: "any",
+      }),
+    ]);
+    const after = closeSignup(s, VENUE_ID);
+    const loser = after.stalls.find((row) => row.id === "b");
+    expect(loser?.allottedToday).toBe(true);
+    expect(loser?.lotPlotId).toBe("p05");
+  });
+
+  it("switching the preference re-runs the allocation", () => {
+    const s = snapshot([
+      stall({ id: "a", signedUpToday: true, signedUpAt: 1, lotPlotId: "p01" }),
+      stall({ id: "b", signedUpToday: true, signedUpAt: 2, lotPlotId: "p01", category: "烤串" }),
+    ]);
+    const after = setPlotPreference(s, "b", "any");
+    expect(after.stalls.find((row) => row.id === "b")?.lotPlotId).toBe("p05");
+  });
+});
+
+describe("截止后放出来的位", () => {
+  it("does not hand a freed plot to the waitlist on its own", () => {
+    const s = closeSignup(
+      snapshot([
+        stall({ id: "a", signedUpToday: true, signedUpAt: 1, lotPlotId: "p01" }),
+        stall({ id: "b", signedUpToday: true, signedUpAt: 2, lotPlotId: "p01" }),
+      ]),
+      VENUE_ID,
+    );
+    const freed = markNoShow(s, "a");
+    expect(freed.stalls.find((row) => row.id === "b")?.allottedToday).toBe(false);
+  });
+
+  it("gives it to a waitlisted vendor who actively claims it", () => {
+    const s = closeSignup(
+      snapshot([
+        stall({ id: "a", signedUpToday: true, signedUpAt: 1, lotPlotId: "p01" }),
+        stall({ id: "b", signedUpToday: true, signedUpAt: 2, lotPlotId: "p01" }),
+      ]),
+      VENUE_ID,
+    );
+    const freed = markNoShow(s, "a");
+    const claimed = claimFreedPlot(freed, "b", "p01");
+    expect(claimed.stalls.find((row) => row.id === "b")?.allottedToday).toBe(true);
+  });
+
+  it("refuses a claim on a plot someone is still standing on", () => {
+    const s = closeSignup(
+      snapshot([
+        stall({ id: "a", signedUpToday: true, signedUpAt: 1, lotPlotId: "p01" }),
+        stall({ id: "b", signedUpToday: true, signedUpAt: 2, lotPlotId: "p01" }),
+      ]),
+      VENUE_ID,
+    );
+    expect(claimFreedPlot(s, "b", "p01").stalls.find((row) => row.id === "b")?.allottedToday).toBe(false);
+  });
+});
+
+describe("一步报名", () => {
+  it("signs up on last night's plot with no plot picked", () => {
+    const s = snapshot([stall({ id: "a", lastPlotId: "p01" })]);
+    const after = signUp(s, "a", undefined, 5);
+    expect(after.stalls[0].signedUpToday).toBe(true);
+    expect(after.stalls[0].lotPlotId).toBe("p01");
+  });
+
+  it("has nothing to reuse for a first-time vendor, so they must pick", () => {
+    const s = snapshot([stall({ id: "a" })]);
+    expect(signUp(s, "a", undefined, 5).stalls[0].signedUpToday).toBe(false);
+  });
+
+  it("remembers tonight's plot when the next trading day opens", () => {
+    const s = snapshot([stall({ id: "a", allottedToday: true, lotPlotId: "p01" })]);
+    expect(openNextDay(s, VENUE_ID).stalls[0].lastPlotId).toBe("p01");
   });
 });

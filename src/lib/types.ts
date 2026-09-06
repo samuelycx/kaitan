@@ -60,11 +60,22 @@ export type Stall = {
   signedUpToday: boolean;
   allottedToday: boolean;
   arrivedToday: boolean;
+  packedUpToday: boolean;
   noShowToday: boolean;
   signedUpAt: number;
   lotSlot: number;
   lotPlotId: string;
+  /** What to do when someone else takes the chosen plot first. */
+  plotPreference: PlotPreference;
+  /** The plot this stall held last trading day, so sign-up is one tap. */
+  lastPlotId: string;
 };
+
+/**
+ * Decided 2026-09-06: the vendor picks this when signing up, not afterwards.
+ * "only" keeps waiting for the exact plot; "any" takes whatever still fits.
+ */
+export type PlotPreference = "only" | "any";
 
 export type Dish = {
   id: string;
@@ -196,10 +207,28 @@ export function ratingLabel(reviews: Review[], stallId: string) {
   return count > 0 ? `${avg} · ${count}评` : "还没人评";
 }
 
+/**
+ * Where a stall is right now, from the customer's point of view. Signing up is
+ * not the same as standing behind the counter, so the list has to say which.
+ */
+export type BoothState = "waiting" | "open" | "packed";
+
+export function boothState(stall: Pick<Stall, "arrivedToday" | "packedUpToday">): BoothState {
+  if (stall.packedUpToday) return "packed";
+  return stall.arrivedToday ? "open" : "waiting";
+}
+
+export const BOOTH_STATE_LABEL: Record<BoothState, string> = {
+  waiting: "还没开摊",
+  open: "已开摊",
+  packed: "已收摊",
+};
+
 export function canTakeMiniOrder(stall: Stall) {
   return (
     stall.status === "active" &&
     stall.allottedToday &&
+    boothState(stall) === "open" &&
     stall.licenseTier === "ordering" &&
     !stall.orderingPaused
   );
@@ -225,4 +254,10 @@ export type Snapshot = {
   organizerName: string;
   consumerId: string;
   consumerName: string;
+  /**
+   * Demo clock, in minutes past midnight. The prototype has no server, so the
+   * cutoff would only ever fire at the real 15:00; this lets a demo move the
+   * day along. `null` means follow the real clock.
+   */
+  demoMinutes: number | null;
 };

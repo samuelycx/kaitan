@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { Btn, Card, CardHead, Cell, Empty, Lead, Page } from "@/components/mp";
 import { useOrgDesk } from "@/lib/use-org";
-import { stallCover } from "@/lib/types";
+import { BOOTH_STATE_LABEL, boothState, stallCover } from "@/lib/types";
 
 export default function OrgFloorPage() {
   const { allotted, waitlist, noShows, disputes, orders, markArrived, markNoShow, addDispute } = useOrgDesk();
@@ -22,7 +22,7 @@ export default function OrgFloorPage() {
   return (
     <Page>
       <Lead kicker="管场" title="现场">
-        占到位的要到场。未到就把位放给候补。纠纷只记在场子，不改证、不改货款账户。
+        摊主自己点开摊收摊；这里只做人工纠正。未到就把位放给候补。纠纷只记在场子，不改证、不改货款账户。
       </Lead>
       <Card>
         <CardHead>今晚占到位</CardHead>
@@ -39,11 +39,13 @@ export default function OrgFloorPage() {
                 thumb={stallCover(s)}
                 end={
                   s.arrivedToday ? (
-                    <span className="text-[13px] text-[var(--muted)]">已到</span>
+                    <Btn kind="ghost" onClick={() => markArrived(s.id, false)}>
+                      改回没到
+                    </Btn>
                   ) : (
                     <span className="flex gap-1">
                       <Btn kind="ink" onClick={() => markArrived(s.id)}>
-                        已到
+                        代点开摊
                       </Btn>
                       <Btn kind="danger" disabled={live} onClick={() => markNoShow(s.id)}>
                         未到放位
@@ -53,10 +55,16 @@ export default function OrgFloorPage() {
                 }
               >
                 <p>
-                  {s.vendorName} · {s.category}
+                  {s.vendorName} · {s.category} · {BOOTH_STATE_LABEL[boothState(s)]}
                 </p>
                 <p className="text-[13px] text-[var(--muted)]">
-                  {live ? "还有未取完的单，先退再放位。" : s.arrivedToday ? "人在场。" : "还没点到场。"}
+                  {live
+                    ? "还有未取完的单，先退再放位。"
+                    : boothState(s) === "open"
+                      ? "顾客端显示已开摊，能点单。"
+                      : boothState(s) === "packed"
+                        ? "已收摊，顾客端不再显示。"
+                        : "顾客端显示还没开摊，点不了单。"}
                 </p>
               </Cell>
             );
@@ -65,11 +73,13 @@ export default function OrgFloorPage() {
       </Card>
       {waitlist.length > 0 && (
         <Card>
-          <CardHead>候补 · 放位会补进来</CardHead>
+          <CardHead>候补 · 截止前自动补位，截止后要摊主自己认领</CardHead>
           {waitlist.map((s) => (
             <Cell key={s.id} thumb={stallCover(s)}>
               <p>{s.vendorName}</p>
-              <p className="text-[13px] text-[var(--muted)]">位满，等人放出来</p>
+              <p className="text-[13px] text-[var(--muted)]">
+                {s.plotPreference === "any" ? "位满 · 有位就行" : "位满 · 只要原来那个位"}
+              </p>
             </Cell>
           ))}
         </Card>

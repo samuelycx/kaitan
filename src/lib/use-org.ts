@@ -1,4 +1,5 @@
 import { useStore } from "./store";
+import { boothState } from "./types";
 
 export function useOrgDesk() {
   const store = useStore();
@@ -8,6 +9,10 @@ export function useOrgDesk() {
   const pending = here.filter((s) => s.status === "pending");
   const allotted = active.filter((s) => s.allottedToday);
   const arrived = allotted.filter((s) => s.arrivedToday);
+  const openNow = allotted.filter((s) => boothState(s) === "open");
+  const notArrived = allotted.filter((s) => boothState(s) === "waiting");
+  const packedUp = allotted.filter((s) => boothState(s) === "packed");
+  const signupOpen = venue ? store.isSignupOpen(venue.id) : false;
   const waitlist = active.filter((s) => s.signedUpToday && !s.allottedToday);
   const missed = active.filter((s) => !s.signedUpToday && !s.noShowToday);
   const noShows = here.filter((s) => s.noShowToday);
@@ -25,6 +30,10 @@ export function useOrgDesk() {
     pending,
     allotted,
     arrived,
+    openNow,
+    notArrived,
+    packedUp,
+    signupOpen,
     waitlist,
     missed,
     noShows,

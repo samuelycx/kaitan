@@ -10,5 +10,6 @@ export function useVendorDesk() {
   const mySales = store.sales.filter((row) => row.stallId === tenancy?.id);
   const tonightYuan = mySales.reduce((sum, row) => sum + row.priceYuan, 0);
   const myOrders = store.orders.filter((row) => row.stallId === tenancy?.id);
-  return { ...store, venue, mine, tenancy, myDishes, tonightDishes, mySales, tonightYuan, myOrders };
+  const signupOpen = venue ? store.isSignupOpen(venue.id) : false;
+  return { ...store, venue, mine, tenancy, myDishes, tonightDishes, mySales, tonightYuan, myOrders, signupOpen };
 }

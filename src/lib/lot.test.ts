@@ -11,6 +11,7 @@ function stall(partial: {
   signedUpAt?: number;
   status?: "active" | "pending";
   licenseTier?: "display" | "ordering";
+  plotPreference?: "only" | "any";
 }) {
   return {
     id: partial.id,
@@ -30,7 +31,10 @@ function stall(partial: {
     signedUpToday: true,
     allottedToday: partial.allottedToday ?? true,
     arrivedToday: false,
+    packedUpToday: false,
     noShowToday: false,
+    plotPreference: partial.plotPreference ?? ("only" as const),
+    lastPlotId: "",
     signedUpAt: partial.signedUpAt ?? 1,
     lotSlot: partial.lotSlot ?? 0,
     lotPlotId: partial.lotPlotId ?? "",

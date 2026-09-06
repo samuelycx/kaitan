@@ -75,15 +75,29 @@ export function claimPlots(stalls: Stall[], venue: Venue): Stall[] {
     if (!plot || taken.has(plot.id) || !plotFits(row.category, plot)) continue;
     taken.set(plot.id, row.id);
   }
+  // Whoever asked for "any free plot" gets moved onto one, still in sign-up
+  // order, so losing a contested plot does not mean losing the evening.
+  const moved = new Map<string, string>();
+  for (const row of signed) {
+    if (row.plotPreference !== "any") continue;
+    if (taken.get(row.lotPlotId) === row.id) continue;
+    const free = plots.find(
+      (p) => !taken.has(p.id) && !moved.has(p.id) && plotFits(row.category, p),
+    );
+    if (free) moved.set(free.id, row.id);
+  }
+
   return stalls.map((row) => {
     if (row.venueId !== venue.id) return row;
-    const won = Boolean(row.lotPlotId && taken.get(row.lotPlotId) === row.id);
-    const plot = plots.find((p) => p.id === row.lotPlotId);
+    const kept = Boolean(row.lotPlotId && taken.get(row.lotPlotId) === row.id);
+    const movedTo = plots.find((p) => moved.get(p.id) === row.id);
+    const won = kept || Boolean(movedTo);
+    const plot = movedTo ?? plots.find((p) => p.id === row.lotPlotId);
     return {
       ...row,
       allottedToday: won,
       lotSlot: won && plot ? Number(plot.no) : 0,
-      lotPlotId: won || row.signedUpToday ? row.lotPlotId : "",
+      lotPlotId: movedTo ? movedTo.id : won || row.signedUpToday ? row.lotPlotId : "",
     };
   });
 }

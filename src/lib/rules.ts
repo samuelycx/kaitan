@@ -1,5 +1,5 @@
 import { claimPlots, findPlot, plotFits } from "./lot";
-import type { OrderStatus, Snapshot, Stall, Venue } from "./types";
+import type { OrderStatus, PlotPreference, Snapshot, Stall, Venue } from "./types";
 
 /**
  * Pure snapshot transitions for the rules the business depends on: daily
@@ -29,36 +29,158 @@ const CLEARED = {
   allottedToday: false,
   signedUpAt: 0,
   arrivedToday: false,
+  packedUpToday: false,
   lotSlot: 0,
   lotPlotId: "",
 } as const;
 
+/** "15:00" to minutes past midnight. Returns -1 for anything unparseable. */
+export function minutesOfClock(hhmm: string) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
+  if (!m) return -1;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+/**
+ * Minutes past midnight right now. The prototype keeps a demo clock so a
+ * walkthrough can cross the cutoff without waiting for the real afternoon.
+ */
+export function nowMinutes(s: Pick<Snapshot, "demoMinutes">, at = Date.now()) {
+  if (s.demoMinutes !== null && s.demoMinutes >= 0) return s.demoMinutes;
+  const d = new Date(at);
+  return d.getHours() * 60 + d.getMinutes();
+}
+
+/**
+ * Sign-up is open only while both hold: the printed cutoff has not passed, and
+ * the organizer has not closed early. The clock does the closing on its own;
+ * the organizer's button can only bring it forward, never push it back.
+ */
+export function signupOpenNow(s: Snapshot, venue: Venue, at = Date.now()) {
+  if (!venue.signupOpen || venue.closedToday) return false;
+  const cutoff = minutesOfClock(venue.signupBy);
+  if (cutoff < 0) return true;
+  return nowMinutes(s, at) < cutoff;
+}
+
+/** After the venue's closing time nobody is still trading. */
+export function pastClosingTime(s: Snapshot, venue: Venue, at = Date.now()) {
+  const close = minutesOfClock(venue.close);
+  if (close < 0) return false;
+  return nowMinutes(s, at) >= close;
+}
+
 /** Sign a stall up for tonight. Refused once the venue's cutoff has passed. */
-export function signUp(s: Snapshot, stallId: string, plotId: string | undefined, now: number): Snapshot {
+export function signUp(
+  s: Snapshot,
+  stallId: string,
+  plotId: string | undefined,
+  now: number,
+  preference?: PlotPreference,
+): Snapshot {
   const found = context(s, stallId);
   if (!found) return s;
   const { stall, venue } = found;
-  if (!venue.signupOpen || stall.status !== "active") return s;
-  const plot = plotId ? findPlot(venue.floor, plotId) : findPlot(venue.floor, stall.lotPlotId);
-  if (plotId && (!plot || !plotFits(stall.category, plot))) return s;
+  if (!signupOpenNow(s, venue, now) || stall.status !== "active") return s;
+  // No plot given means "same as last time" — the one-tap path.
+  const wanted = plotId || stall.lotPlotId || stall.lastPlotId;
+  const plot = findPlot(venue.floor, wanted);
+  if (!plot || !plotFits(stall.category, plot)) return s;
   const stalls = s.stalls.map((row) =>
     row.id === stallId
       ? {
           ...row,
           signedUpToday: true,
           signedUpAt: row.signedUpAt || now,
-          lotPlotId: plot?.id || row.lotPlotId,
-          lotSlot: plot ? Number(plot.no) : row.lotSlot,
+          lotPlotId: plot.id,
+          lotSlot: Number(plot.no),
+          plotPreference: preference ?? row.plotPreference,
         }
       : row,
   );
   return reallocate(s, venue, stalls);
 }
 
-/** Withdraw tonight's sign-up. Also refused after the cutoff. */
-export function withdraw(s: Snapshot, stallId: string): Snapshot {
+/** Change the fall-back preference without re-picking a plot. */
+export function setPlotPreference(s: Snapshot, stallId: string, preference: PlotPreference): Snapshot {
   const found = context(s, stallId);
-  if (!found || !found.venue.signupOpen) return s;
+  if (!found) return s;
+  const stalls = s.stalls.map((row) => (row.id === stallId ? { ...row, plotPreference: preference } : row));
+  return reallocate(s, found.venue, stalls);
+}
+
+/**
+ * Claim a plot that came free after the cutoff. Deliberately never automatic:
+ * once sign-up has closed a waitlisted vendor has usually gone home, and
+ * handing them a plot they never asked for just creates another empty stall.
+ */
+export function claimFreedPlot(s: Snapshot, stallId: string, plotId: string): Snapshot {
+  const found = context(s, stallId);
+  if (!found) return s;
+  const { stall, venue } = found;
+  if (stall.status !== "active" || !stall.signedUpToday || stall.allottedToday) return s;
+  const plot = findPlot(venue.floor, plotId);
+  if (!plot || !plotFits(stall.category, plot)) return s;
+  const held = s.stalls.some(
+    (row) => row.id !== stallId && row.venueId === venue.id && row.allottedToday && row.lotPlotId === plot.id,
+  );
+  if (held) return s;
+  const stalls = s.stalls.map((row) =>
+    row.id === stallId ? { ...row, allottedToday: true, lotPlotId: plot.id, lotSlot: Number(plot.no) } : row,
+  );
+  return { ...s, stalls };
+}
+
+/** The vendor says they are set up and trading. */
+export function markArrived(s: Snapshot, stallId: string, arrived: boolean): Snapshot {
+  const stalls = s.stalls.map((row) =>
+    row.id === stallId && row.allottedToday
+      ? { ...row, arrivedToday: arrived, packedUpToday: false, noShowToday: arrived ? false : row.noShowToday }
+      : row,
+  );
+  return { ...s, stalls };
+}
+
+/**
+ * The vendor says they have packed up. Refused while an order is still waiting
+ * to be collected, so nobody walks over to a stall that has gone.
+ */
+export function markPackedUp(s: Snapshot, stallId: string): Snapshot {
+  const stall = s.stalls.find((row) => row.id === stallId);
+  if (!stall || !stall.arrivedToday || stall.packedUpToday) return s;
+  const live = s.orders.some(
+    (row) => row.stallId === stallId && (row.status === "placed" || row.status === "ready"),
+  );
+  if (live) return s;
+  return {
+    ...s,
+    stalls: s.stalls.map((row) => (row.id === stallId ? { ...row, packedUpToday: true } : row)),
+  };
+}
+
+/**
+ * Closing-time backstop. Vendors forget to tap, and a stale list is worse than
+ * no list, so everyone still shown as trading is packed up once the venue's
+ * closing time passes.
+ */
+export function autoPackUpAtClose(s: Snapshot, at = Date.now()): Snapshot {
+  const closed = new Set(
+    s.venues.filter((venue) => pastClosingTime(s, venue, at)).map((venue) => venue.id),
+  );
+  if (closed.size === 0) return s;
+  let changed = false;
+  const stalls = s.stalls.map((row) => {
+    if (!closed.has(row.venueId) || !row.arrivedToday || row.packedUpToday) return row;
+    changed = true;
+    return { ...row, packedUpToday: true };
+  });
+  return changed ? { ...s, stalls } : s;
+}
+
+/** Withdraw tonight's sign-up. Also refused after the cutoff. */
+export function withdraw(s: Snapshot, stallId: string, at = Date.now()): Snapshot {
+  const found = context(s, stallId);
+  if (!found || !signupOpenNow(s, found.venue, at)) return s;
   const stalls = s.stalls.map((row) => (row.id === stallId ? { ...row, ...CLEARED } : row));
   return reallocate(s, found.venue, stalls);
 }
@@ -78,7 +200,10 @@ export function markNoShow(s: Snapshot, stallId: string): Snapshot {
   const stalls = s.stalls.map((row) =>
     row.id === stallId ? { ...row, ...CLEARED, noShowToday: true } : row,
   );
-  return reallocate(s, found.venue, stalls);
+  // While sign-up is still open the freed plot goes straight back into the
+  // draw. After the cutoff it is left empty on purpose: a waitlisted vendor
+  // has to claim it, because by then they may well have gone home.
+  return signupOpenNow(s, found.venue) ? reallocate(s, found.venue, stalls) : { ...s, stalls };
 }
 
 /** Advance an order. Only placed to ready, and ready to picked, are legal. */
@@ -118,7 +243,9 @@ export function openNextDay(s: Snapshot, venueId: string): Snapshot {
     ...s,
     venues: s.venues.map((v) => (v.id === venueId ? { ...v, signupOpen: true, closedToday: false } : v)),
     stalls: s.stalls.map((row) =>
-      row.venueId === venueId ? { ...row, ...CLEARED, noShowToday: false } : row,
+      row.venueId === venueId
+        ? { ...row, ...CLEARED, noShowToday: false, lastPlotId: row.lotPlotId || row.lastPlotId }
+        : row,
     ),
   };
 }

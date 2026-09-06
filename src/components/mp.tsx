@@ -179,6 +179,8 @@ export function StallPoster({
   pay,
   rating,
   dishes,
+  state,
+  stateKind,
 }: {
   href: string;
   cover: string;
@@ -188,6 +190,8 @@ export function StallPoster({
   blurb: string;
   pay: string;
   rating?: string;
+  state?: string;
+  stateKind?: string;
   dishes: { id: string; name: string; priceYuan: number; photo: string }[];
 }) {
   return (
@@ -196,6 +200,7 @@ export function StallPoster({
         <img src={cover} alt="" />
         <span className="stall-plaque">{slotNo}</span>
         <span className="stamp stall-poster-stamp">{pay}</span>
+        {state && <span className={`booth-state is-${stateKind ?? "open"}`}>{state}</span>}
       </div>
       <div className="stall-poster-body">
         <p className="stall-poster-cat">{category}</p>

@@ -5,7 +5,16 @@ import { useMemo, useState } from "react";
 import { Btn, Card, CardHead, Cell, Empty, Page } from "@/components/mp";
 import { useStore } from "@/lib/store";
 import { canLeaveReview } from "@/lib/lot";
-import { canTakeMiniOrder, dishPhoto, ratingLabel, stallCover, stallPayLabel, tonightBooths } from "@/lib/types";
+import {
+  BOOTH_STATE_LABEL,
+  boothState,
+  canTakeMiniOrder,
+  dishPhoto,
+  ratingLabel,
+  stallCover,
+  stallPayLabel,
+  tonightBooths,
+} from "@/lib/types";
 
 export default function StallPage() {
   const { id } = useParams<{ id: string }>();
@@ -35,6 +44,7 @@ export default function StallPage() {
     );
   }
 
+  const state = boothState(stall);
   const canOrder = canTakeMiniOrder(stall);
   const canReview = canLeaveReview(stall, orders, ateHere);
   const paused = stall.licenseTier === "ordering" && stall.orderingPaused;
@@ -72,6 +82,7 @@ export default function StallPage() {
         <img src={stallCover(stall)} alt="" />
         <span className="stall-plaque">{booth?.slotNo ?? "—"}</span>
         <span className="stamp stall-poster-stamp">{stallPayLabel(stall)}</span>
+        <span className={`booth-state is-${state}`}>{BOOTH_STATE_LABEL[state]}</span>
       </div>
       <header className="px-0.5 pt-3">
         <p className="text-[11px] tracking-[0.18em] text-[var(--lacquer)]">{stall.category}</p>
@@ -80,6 +91,18 @@ export default function StallPage() {
           {stall.blurb || stall.fromStreet} · {ratingLabel(reviews, stall.id)}
         </p>
       </header>
+      {state !== "open" && (
+        <Card>
+          <Cell>
+            <p>{state === "waiting" ? "摊主还没到场" : "今晚已经收摊"}</p>
+            <p className="text-[13px] leading-relaxed text-[var(--muted)]">
+              {state === "waiting"
+                ? `报了 ${booth?.slotNo ?? ""} 号位，人还没到。到场后这里才开放点单，先别跑空。`
+                : "今晚不做了。明天再来。"}
+            </p>
+          </Cell>
+        </Card>
+      )}
       <Card>
         {menu.length === 0 ? (
           <Empty>今晚菜单还没写上。</Empty>
@@ -196,9 +219,13 @@ export default function StallPage() {
         <Card>
           <Cell>
             <p className="text-[13px] leading-relaxed text-[var(--muted)]">
-              {paused
-                ? "管场暂停了这个摊的小程序接单。到摊点、到摊付。"
-                : "这个摊还不能在小程序收款。到摊点、到摊付。"}
+              {state === "waiting"
+                ? "摊主到场后才能下单。"
+                : state === "packed"
+                  ? "已经收摊，今晚不接单了。"
+                  : paused
+                    ? "管场暂停了这个摊的小程序接单。到摊点、到摊付。"
+                    : "这个摊还不能在小程序收款。到摊点、到摊付。"}
             </p>
           </Cell>
         </Card>

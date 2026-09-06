@@ -2,10 +2,11 @@
 
 import { Card, CardHead, Cell, Empty, Lead, LotMap, Page, Stats } from "@/components/mp";
 import { useOrgDesk } from "@/lib/use-org";
-import { stallCover, stallPayLabel, tonightBooths } from "@/lib/types";
+import { BOOTH_STATE_LABEL, boothState, stallCover, tonightBooths } from "@/lib/types";
 
 export default function OrgTodayPage() {
-  const { venue, allotted, arrived, waitlist, missed, noShows, vacant, dishes } = useOrgDesk();
+  const { venue, allotted, openNow, notArrived, packedUp, signupOpen, waitlist, missed, noShows, vacant, dishes } =
+    useOrgDesk();
   if (!venue) return <p>还没有经营点。</p>;
   const booths = tonightBooths(allotted, venue.floor);
 
@@ -14,14 +15,14 @@ export default function OrgTodayPage() {
       <Lead kicker="管场" title="今日占位">
         {venue.closedToday
           ? "今日停市。顾客端不展示摊。"
-          : venue.signupOpen
-            ? "报名进行中，摊主点空位，先点先得。"
+          : signupOpen
+            ? `报名进行中，${venue.signupBy} 一到自动截止。`
             : "已截止。未报名的今晚没有摊位。"}
       </Lead>
       <Stats
         items={[
-          { label: "占到", value: venue.closedToday ? "停市" : allotted.length },
-          { label: "已占/总位", value: `${allotted.length}/${venue.floor?.plots.length ?? venue.slots}` },
+          { label: "已开摊", value: venue.closedToday ? "停市" : openNow.length },
+          { label: "报了没到", value: venue.closedToday ? "—" : notArrived.length },
           { label: "空位", value: vacant },
         ]}
       />
@@ -44,12 +45,14 @@ export default function OrgTodayPage() {
         <Cell href="/org/floor" end="现场 ›">
           <p>到场 · 未到放位 · 纠纷</p>
           <p className="text-[13px] text-[var(--muted)]">
-            {venue.closedToday ? "停市" : `${arrived.length} 已到 · ${noShows.length} 未到放位`}
+            {venue.closedToday
+              ? "停市"
+              : `${openNow.length} 已开摊 · ${notArrived.length} 没到 · ${packedUp.length} 已收 · ${noShows.length} 放位`}
           </p>
         </Cell>
       </Card>
       <Card>
-        <CardHead>顾客今晚会看到</CardHead>
+        <CardHead>顾客今晚会看到 · 只有已开摊的能点单</CardHead>
         {venue.closedToday ? (
           <Empty>停市，开摊里是空的。</Empty>
         ) : allotted.length === 0 ? (
@@ -59,7 +62,7 @@ export default function OrgTodayPage() {
             const menu = dishes.filter((d) => d.stallId === s.id && d.onTonight);
             const booth = booths.find((row) => row.stall.id === s.id);
             return (
-              <Cell key={s.id} thumb={stallCover(s)} end={s.arrivedToday ? "已到" : stallPayLabel(s)}>
+              <Cell key={s.id} thumb={stallCover(s)} end={BOOTH_STATE_LABEL[boothState(s)]}>
                 <p>
                   {booth?.slotNo ? `${booth.slotNo} · ` : ""}
                   {s.vendorName} · {s.category}

@@ -9,9 +9,22 @@ import {
   type ReactNode,
 } from "react";
 import { canLeaveReview, claimPlots, formatSlotNo, plotByNo } from "./lot";
+import { canTakeMiniOrder } from "./types";
 import * as rules from "./rules";
 import { SEED } from "./seed";
-import type { Dish, Dispute, Order, OrderStatus, Review, Role, Sale, Snapshot, Stall, Venue } from "./types";
+import type {
+  Dish,
+  Dispute,
+  Order,
+  OrderStatus,
+  PlotPreference,
+  Review,
+  Role,
+  Sale,
+  Snapshot,
+  Stall,
+  Venue,
+} from "./types";
 
 const KEY = "kaitan-vendor-v2";
 
@@ -32,8 +45,15 @@ type Store = Snapshot & {
   setRole: (role: Role) => void;
   apply: (venueId: string, category: string, fromStreet: string) => void;
   review: (stallId: string, status: "active" | "rejected") => void;
-  signUp: (stallId: string, plotId?: string) => void;
+  signUp: (stallId: string, plotId?: string, preference?: PlotPreference) => void;
+  setPlotPreference: (stallId: string, preference: PlotPreference) => void;
+  claimFreedPlot: (stallId: string, plotId: string) => void;
   withdraw: (stallId: string) => void;
+  /** Whether this venue is still taking sign-ups: clock first, organizer second. */
+  isSignupOpen: (venueId: string) => boolean;
+  /** Minutes past midnight the app is treating as now. */
+  nowMinutes: number;
+  setDemoMinutes: (minutes: number | null) => void;
   closeSignup: (venueId: string) => void;
   openNextDay: (venueId: string) => void;
   addDish: (stallId: string, name: string, priceYuan: number, photo?: string) => void;
@@ -48,7 +68,8 @@ type Store = Snapshot & {
   pauseOrdering: (stallId: string, paused: boolean) => void;
   markFeePaid: (stallId: string, paid: boolean) => void;
   setClosedToday: (venueId: string, closed: boolean) => void;
-  markArrived: (stallId: string) => void;
+  markArrived: (stallId: string, arrived?: boolean) => void;
+  markPackedUp: (stallId: string) => void;
   markNoShow: (stallId: string) => void;
   addDispute: (stallId: string, note: string) => void;
   addReview: (stallId: string, stars: number, note: string, ateHere?: boolean) => void;
@@ -73,6 +94,7 @@ function load(): Snapshot {
       reviews: parsed.reviews ?? SEED.reviews,
       consumerId: parsed.consumerId || SEED.consumerId,
       consumerName: parsed.consumerName || SEED.consumerName,
+      demoMinutes: parsed.demoMinutes ?? null,
       venues: (parsed.venues ?? SEED.venues).map((row) => {
         const seeded = SEED.venues.find((v) => v.id === row.id);
         return {
@@ -92,7 +114,10 @@ function load(): Snapshot {
             orderingPaused: row.orderingPaused ?? false,
             feePaidThisMonth: row.feePaidThisMonth ?? false,
             arrivedToday: row.arrivedToday ?? false,
+            packedUpToday: row.packedUpToday ?? false,
             noShowToday: row.noShowToday ?? false,
+            plotPreference: row.plotPreference ?? "only",
+            lastPlotId: row.lastPlotId ?? seeded?.lastPlotId ?? "",
             cover: row.cover || seeded?.cover || "",
             blurb: row.blurb || seeded?.blurb || "",
             category: row.category || seeded?.category || "小吃",
@@ -139,6 +164,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     window.localStorage.setItem(KEY, JSON.stringify(snap));
   }, [snap, hydrated]);
 
+  // Closing time packs up anyone who forgot to tap, so the late-evening list
+  // never shows a stall that has already gone.
+  useEffect(() => {
+    if (!hydrated) return;
+    const tick = () => setSnap((cur) => rules.autoPackUpAtClose(cur));
+    tick();
+    const timer = window.setInterval(tick, 60_000);
+    return () => window.clearInterval(timer);
+  }, [hydrated, snap.demoMinutes]);
+
   const value = useMemo<Store>(
     () => ({
       ...snap,
@@ -165,10 +200,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           signedUpToday: false,
           allottedToday: false,
           arrivedToday: false,
+          packedUpToday: false,
           noShowToday: false,
           signedUpAt: 0,
           lotSlot: 0,
           lotPlotId: "",
+          plotPreference: "only",
+          lastPlotId: "",
         };
         setSnap((s) => ({ ...s, stalls: [...s.stalls, row] }));
       },
@@ -193,8 +231,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           };
         });
       },
-      signUp(stallId, plotId) {
-        setSnap((cur) => rules.signUp(cur, stallId, plotId, Date.now()));
+      signUp(stallId, plotId, preference) {
+        setSnap((cur) => rules.signUp(cur, stallId, plotId, Date.now(), preference));
+      },
+      setPlotPreference(stallId, preference) {
+        setSnap((cur) => rules.setPlotPreference(cur, stallId, preference));
+      },
+      claimFreedPlot(stallId, plotId) {
+        setSnap((cur) => rules.claimFreedPlot(cur, stallId, plotId));
+      },
+      isSignupOpen(venueId) {
+        const venue = snap.venues.find((v) => v.id === venueId);
+        return venue ? rules.signupOpenNow(snap, venue) : false;
+      },
+      nowMinutes: rules.nowMinutes(snap),
+      setDemoMinutes(minutes) {
+        setSnap((s) => ({ ...s, demoMinutes: minutes }));
       },
       withdraw(stallId) {
         setSnap((cur) => rules.withdraw(cur, stallId));
@@ -288,9 +340,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       },
       placeOrder(stallId, picks) {
         const stall = snap.stalls.find((row) => row.id === stallId);
-        if (!stall || stall.status !== "active" || !stall.allottedToday || stall.licenseTier !== "ordering" || stall.orderingPaused) {
-          return null;
-        }
+        if (!stall || !canTakeMiniOrder(stall)) return null;
         const items = picks
           .map((pick) => {
             const dish = snap.dishes.find((d) => d.id === pick.dishId && d.stallId === stallId && d.onTonight);
@@ -343,15 +393,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       markOrder(orderId, status) {
         setSnap((cur) => rules.markOrder(cur, orderId, status));
       },
-      markArrived(stallId) {
-        setSnap((s) => ({
-          ...s,
-          stalls: s.stalls.map((row) =>
-            row.id === stallId && row.allottedToday
-              ? { ...row, arrivedToday: true, noShowToday: false }
-              : row,
-          ),
-        }));
+      markArrived(stallId, arrived = true) {
+        setSnap((cur) => rules.markArrived(cur, stallId, arrived));
+      },
+      markPackedUp(stallId) {
+        setSnap((cur) => rules.markPackedUp(cur, stallId));
       },
       markNoShow(stallId) {
         setSnap((cur) => rules.markNoShow(cur, stallId));

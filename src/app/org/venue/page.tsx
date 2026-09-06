@@ -5,10 +5,24 @@ import { useOrgDesk } from "@/lib/use-org";
 import { stallCover, tonightBooths, venueCover } from "@/lib/types";
 
 export default function OrgVenuePage() {
-  const { venue, organizerName, active, allotted, feeUnpaid, closeSignup, openNextDay, markFeePaid, setClosedToday } =
-    useOrgDesk();
+  const {
+    venue,
+    organizerName,
+    active,
+    allotted,
+    feeUnpaid,
+    signupOpen,
+    nowMinutes,
+    demoMinutes,
+    setDemoMinutes,
+    closeSignup,
+    openNextDay,
+    markFeePaid,
+    setClosedToday,
+  } = useOrgDesk();
   if (!venue) return <p>还没有经营点。</p>;
   const booths = tonightBooths(allotted, venue.floor);
+  const clock = `${String(Math.floor(nowMinutes / 60)).padStart(2, "0")}:${String(nowMinutes % 60).padStart(2, "0")}`;
 
   return (
     <Page>
@@ -28,7 +42,9 @@ export default function OrgVenuePage() {
         </Cell>
         <Cell>
           <p>报名截止</p>
-          <p className="text-[13px] text-[var(--muted)]">{venue.signupBy} 前 · 点空位先得</p>
+          <p className="text-[13px] text-[var(--muted)]">
+            {venue.signupBy} 一到自动截止 · 现在 {clock}
+          </p>
         </Cell>
         <Cell>
           <p>摊位</p>
@@ -54,9 +70,9 @@ export default function OrgVenuePage() {
       <Card>
         <Cell
           end={
-            venue.signupOpen ? (
+            signupOpen ? (
               <Btn kind="ink" onClick={() => closeSignup(venue.id)}>
-                到点截止
+                提前截止
               </Btn>
             ) : (
               <Btn kind="ghost" onClick={() => openNextDay(venue.id)}>
@@ -65,9 +81,34 @@ export default function OrgVenuePage() {
             )
           }
         >
-          <p>{venue.signupOpen ? "报名进行中" : "今日已截止"}</p>
+          <p>{signupOpen ? "报名进行中" : "今日已截止"}</p>
           <p className="text-[13px] text-[var(--muted)]">
-            {venue.signupOpen ? "摊主点空位，先点先得。" : "未报名的今晚没有摊位。"}
+            {signupOpen
+              ? `到 ${venue.signupBy} 自己就截止，不用管。要提前收就点右边。`
+              : "未报名的今晚没有摊位。"}
+          </p>
+        </Cell>
+      </Card>
+      <Card>
+        <CardHead>演示用的时间 · 真实经营点上不出现</CardHead>
+        <Cell
+          end={
+            <span className="flex gap-1">
+              <Btn kind="ghost" onClick={() => setDemoMinutes(14 * 60)}>
+                截止前
+              </Btn>
+              <Btn kind="ghost" onClick={() => setDemoMinutes(18 * 60)}>
+                开摊时段
+              </Btn>
+              <Btn kind="ghost" onClick={() => setDemoMinutes(null)}>
+                跟真实时间
+              </Btn>
+            </span>
+          }
+        >
+          <p>现在按 {clock} 算</p>
+          <p className="text-[13px] text-[var(--muted)]">
+            {demoMinutes === null ? "跟着手机时间走。" : "演示时间。拨过截止点就能看到自动截止。"}
           </p>
         </Cell>
       </Card>
