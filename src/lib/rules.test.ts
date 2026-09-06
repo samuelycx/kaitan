@@ -99,6 +99,7 @@ function snapshot(stalls: Stall[], orders: Order[] = [], venue: Venue = VENUE): 
   return {
     venues: [venue],
     stalls,
+    follows: [],
     dishes: [],
     sales: [],
     orders,

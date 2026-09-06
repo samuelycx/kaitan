@@ -75,6 +75,8 @@ type Store = Snapshot & {
   markPackedUp: (stallId: string) => void;
   markNoShow: (stallId: string) => void;
   addDispute: (stallId: string, note: string) => void;
+  /** Ask to be told when this stall lights up, or stop asking. */
+  toggleFollow: (stallId: string) => void;
   addReview: (stallId: string, stars: number, note: string, ateHere?: boolean) => void;
   refundOrder: (orderId: string) => void;
 };
@@ -97,6 +99,7 @@ function load(): Snapshot {
       reviews: parsed.reviews ?? SEED.reviews,
       consumerId: parsed.consumerId || SEED.consumerId,
       consumerName: parsed.consumerName || SEED.consumerName,
+      follows: parsed.follows ?? [],
       demoMinutes: parsed.demoMinutes ?? null,
       tradingDate: parsed.tradingDate || SEED.tradingDate,
       dayStartedAt: parsed.dayStartedAt ?? SEED.dayStartedAt,
@@ -411,6 +414,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           };
           return { ...s, reviews: [row, ...s.reviews] };
         });
+      },
+      toggleFollow(stallId) {
+        setSnap((s) => ({
+          ...s,
+          follows: s.follows.includes(stallId)
+            ? s.follows.filter((row) => row !== stallId)
+            : [...s.follows, stallId],
+        }));
       },
       addDispute(stallId, note) {
         const text = note.trim();

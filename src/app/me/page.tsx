@@ -1,82 +1,95 @@
 "use client";
 
-import { Card, CardHead, Cell, Empty, Lead, Page, PaperHero } from "@/components/mp";
+import Link from "next/link";
+import { Empty, Page } from "@/components/mp";
 import { useStore } from "@/lib/store";
-import { ORDER_STATUS, orderThumb, stallCover, venueCover } from "@/lib/types";
+import { boothState, stallCover, tonightBooths } from "@/lib/types";
 
+/**
+ * 我。上面是这个人自己的账，中间是常去的摊——每摊一个「亮灯就提醒我」的开关，
+ * 下面三行是平时不用改、要改的时候得找得到的设置。
+ */
 export default function ConsumerMePage() {
-  const { venues, stalls, dishes, orders, reviews, consumerId } = useStore();
+  const { venues, stalls, orders, consumerName, follows, toggleFollow } = useStore();
   const venue = venues[0];
-  if (!venue) return <p>还没有经营点。</p>;
-  const tickets = orders.filter((row) => row.status !== "refunded");
-  const mine = reviews.filter((row) => row.consumerId === consumerId);
+  const picked = orders.filter((row) => row.status === "picked");
+  const spent = picked.reduce((sum, row) => sum + row.totalYuan, 0);
+  const booths = tonightBooths(stalls, venue?.floor);
+  const known = Array.from(new Set([...follows, ...picked.map((row) => row.stallId)]));
+  const often = known
+    .map((id) => stalls.find((s) => s.id === id))
+    .filter((s): s is NonNullable<typeof s> => Boolean(s));
 
   return (
     <Page>
-      <PaperHero
-        src={venueCover(venue)}
-        kicker={venue.closedToday ? "今日停市" : "每天开门"}
-        title={venue.name}
-        note={`${venue.open}–${venue.close} · ${venue.address}`}
-      />
-      <Lead kicker="开摊" title="到摊取">
-        票上有摊位号。对着场上格子找，把号给摊上看。不配送。
-      </Lead>
-      <Card>
-        <CardHead>我的取餐</CardHead>
-        {tickets.length === 0 ? (
-          <Empty>还没有线上单。证齐的摊可以点，到摊取。</Empty>
-        ) : (
-          tickets.map((row) => {
-            const stall = stalls.find((s) => s.id === row.stallId);
-            return (
-              <Cell
-                key={row.id}
-                href={`/orders/${row.id}`}
-                thumb={orderThumb(row, dishes) || (stall ? stallCover(stall) : undefined)}
-                end={ORDER_STATUS[row.status]}
+      <header className="me-head">
+        <span className="me-face">{consumerName.slice(0, 1)}</span>
+        <div>
+          <h2>{consumerName}</h2>
+          <small>{venue ? `常去 ${venue.name}` : "还没选经营点"}</small>
+        </div>
+      </header>
+      <div className="me-stats">
+        <div>
+          <p>{picked.length}</p>
+          <small>吃过的单</small>
+        </div>
+        <div>
+          <p>{often.length}</p>
+          <small>常去的摊</small>
+        </div>
+        <div>
+          <p>{spent} 元</p>
+          <small>累计</small>
+        </div>
+      </div>
+      <h3 className="me-band">常去的摊 · 亮灯就提醒我</h3>
+      {often.length === 0 ? (
+        <Empty>还没常去的摊。吃过一回就会记在这。</Empty>
+      ) : (
+        often.map((stall) => {
+          const booth = booths.find((row) => row.stall.id === stall.id);
+          const on = follows.includes(stall.id);
+          const lit = boothState(stall) === "open" && stall.allottedToday;
+          return (
+            <div key={stall.id} className="me-follow">
+              <Link href={`/stall/${stall.id}`}>
+                <img src={stallCover(stall)} alt="" />
+                <div>
+                  <p>{stall.vendorName}</p>
+                  <small className={lit ? "is-on" : undefined}>
+                    {lit ? `今晚已亮灯 · ${booth?.slotNo ?? "—"}` : stall.allottedToday ? "备摊中 · 未到场" : "今晚没出"}
+                  </small>
+                </div>
+              </Link>
+              <button
+                type="button"
+                className={`me-switch${on ? " is-on" : ""}`}
+                aria-label={`${stall.vendorName} 亮灯提醒`}
+                aria-pressed={on}
+                onClick={() => toggleFollow(stall.id)}
               >
-                <p className="font-display text-lg leading-none">取餐 {row.pickupNo}</p>
-                <p className="mt-1 text-[13px] text-[var(--muted)]">
-                  {row.slotNo && row.slotNo !== "—" ? `${row.slotNo}号摊 · ` : ""}
-                  {row.vendorName} · {row.totalYuan} 元
-                </p>
-              </Cell>
-            );
-          })
-        )}
-      </Card>
-      <Card>
-        <CardHead>怎么到场</CardHead>
-        <Cell href="/">
-          <p>{venue.address}</p>
-          <p className="text-[13px] text-[var(--muted)]">
-            {venue.open}–{venue.close} · 摊位号对着场上格子，从场口往里数
-          </p>
-        </Cell>
-        <Cell>
-          <p>今日报名</p>
-          <p className="text-[13px] text-[var(--muted)]">{venue.signupBy} 前 · 不报当天没有摊</p>
-        </Cell>
-        <Cell>
-          <p>点单</p>
-          <p className="text-[13px] text-[var(--muted)]">只有证齐的摊能在小程序付。别的到摊付。</p>
-        </Cell>
-      </Card>
-      {mine.length > 0 && (
-        <Card>
-          <CardHead>我写过的评</CardHead>
-          {mine.map((row) => {
-            const stall = stalls.find((s) => s.id === row.stallId);
-            return (
-              <Cell key={row.id} href={stall ? `/stall/${stall.id}` : undefined} end={`${row.stars} 星`}>
-                <p>{stall?.vendorName ?? "摊"}</p>
-                <p className="text-[13px] text-[var(--muted)]">{row.note}</p>
-              </Cell>
-            );
-          })}
-        </Card>
+                <i />
+              </button>
+            </div>
+          );
+        })
       )}
+      <div className="me-set">
+        <Link href="/floor">
+          <span>常去的经营点</span>
+          <em>{venue?.name ?? "没选"}</em>
+          <b>›</b>
+        </Link>
+        <div>
+          <span>支付方式</span>
+          <em>到摊付</em>
+        </div>
+        <div>
+          <span>反馈与投诉</span>
+          <em>到场找管场的人</em>
+        </div>
+      </div>
     </Page>
   );
 }

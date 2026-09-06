@@ -322,6 +322,8 @@ export type Snapshot = {
   organizerName: string;
   consumerId: string;
   consumerName: string;
+  /** Stalls this customer asked to be told about when they light up. */
+  follows: string[];
   /**
    * Demo clock, in minutes past midnight. The prototype has no server, so the
    * cutoff would only ever fire at the real 15:00; this lets a demo move the

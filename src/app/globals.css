@@ -1163,3 +1163,255 @@ body {
   font-weight: 900;
   color: var(--ink);
 }
+
+/* 我的单 · 我 —— 1a 的后两屏 */
+.tabs-line {
+  display: flex;
+  gap: 16px;
+  margin-top: 10px;
+}
+.tabs-line button {
+  font-size: 13px;
+  color: var(--muted);
+  padding-bottom: 4px;
+  border-bottom: 2px solid transparent;
+}
+.tabs-line button.is-on {
+  color: var(--ink);
+  font-weight: 500;
+  border-bottom-color: var(--lacquer);
+}
+.live-order {
+  display: block;
+  border: 1px solid var(--ink);
+  border-radius: 3px;
+  background: #ece0c6;
+}
+.live-order-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px dashed #cdbc9c;
+}
+.live-order-no {
+  font-family: var(--font-display), serif;
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--lacquer);
+}
+.live-order-who {
+  flex: 1;
+  min-width: 0;
+}
+.live-order-who p {
+  font-family: var(--font-display), serif;
+  font-size: 17px;
+  font-weight: 700;
+}
+.live-order-who small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.live-order-tag {
+  font-size: 11px;
+  color: var(--paper);
+  background: var(--lacquer);
+  padding: 3px 8px;
+  border-radius: 2px;
+}
+.live-order-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.live-order-foot strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+.past-order {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 0;
+  border-bottom: 1px solid #e4d6b8;
+}
+.past-order img {
+  width: 46px;
+  height: 46px;
+  border-radius: 3px;
+  object-fit: cover;
+}
+.past-order-body {
+  flex: 1;
+  min-width: 0;
+}
+.past-order-body p {
+  font-size: 15px;
+  font-weight: 500;
+}
+.past-order-body small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.past-order-end {
+  text-align: right;
+}
+.past-order-end p {
+  font-size: 14px;
+}
+.past-order-end a {
+  font-size: 11px;
+  color: var(--lacquer);
+}
+.past-order-end small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.me-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 0 18px;
+  border-bottom: 1px solid #ddcdac;
+}
+.me-face {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #ece0c6;
+  border: 1px solid #c9b795;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display), serif;
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--muted);
+}
+.me-head h2 {
+  font-family: var(--font-display), serif;
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+.me-head small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.me-stats {
+  display: flex;
+  padding: 16px 0;
+  border-bottom: 1px solid #ddcdac;
+}
+.me-stats > div {
+  flex: 1;
+}
+.me-stats p {
+  font-family: var(--font-display), serif;
+  font-size: 23px;
+  font-weight: 900;
+  line-height: 1;
+}
+.me-stats small {
+  display: block;
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.me-band {
+  font-family: var(--font-display), serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 18px 0 8px;
+}
+.me-follow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 0;
+  border-bottom: 1px solid #e4d6b8;
+}
+.me-follow > a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+.me-follow img {
+  width: 42px;
+  height: 42px;
+  border-radius: 3px;
+  object-fit: cover;
+}
+.me-follow p {
+  font-size: 15px;
+  font-weight: 500;
+}
+.me-follow small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.me-follow small.is-on {
+  color: var(--lacquer);
+}
+.me-switch {
+  width: 42px;
+  height: 24px;
+  border-radius: 12px;
+  background: #d8c9ad;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 2px;
+  box-sizing: border-box;
+  flex: none;
+}
+.me-switch.is-on {
+  background: var(--lacquer);
+  justify-content: flex-end;
+}
+.me-switch i {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--paper);
+  display: block;
+}
+.me-set {
+  margin-top: 18px;
+}
+.me-set > * {
+  display: flex;
+  align-items: center;
+  padding: 14px 0;
+  border-top: 1px solid #e4d6b8;
+}
+.me-set span {
+  flex: 1;
+  font-size: 15px;
+  color: var(--ink);
+}
+.me-set em {
+  font-size: 13px;
+  color: var(--muted);
+  font-style: normal;
+}
+.me-set b {
+  margin-left: 8px;
+  font-weight: 400;
+  color: var(--muted);
+}

@@ -375,6 +375,7 @@ export const SEED: Snapshot = {
   ],
   consumerId: "c-me",
   consumerName: "路过的人",
+  follows: [],
   demoMinutes: 14 * 60,
   tradingDate: "2026-09-06",
   dayStartedAt: Date.parse("2026-09-05T16:00:00Z"),

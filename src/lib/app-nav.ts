@@ -44,12 +44,12 @@ export const APPS: MiniAppSpec[] = [
       },
       {
         href: "/orders",
-        label: "订单",
+        label: "我的单",
         icon: "orders",
         badge: "orders",
         match: (path) => path === "/orders" || path.startsWith("/orders/"),
       },
-      { href: "/me", label: "我的", icon: "me", match: (path) => path === "/me" },
+      { href: "/me", label: "我", icon: "me", match: (path) => path === "/me" },
     ],
   },
   {
@@ -118,8 +118,8 @@ export function titleFromPath(path: string, stallName?: string, pickupNo?: strin
   if (path.startsWith("/market/")) return "今晚摊位";
   if (/^\/orders\/.+/.test(path)) return pickupNo ? `取餐 ${pickupNo}` : "取餐号";
   if (path === "/floor") return "今晚场图";
-  if (path === "/orders") return "订单";
-  if (path === "/me") return "我的";
+  if (path === "/orders") return "我的单";
+  if (path === "/me") return "我";
   if (path === "/vendor") return "占位";
   if (path === "/vendor/menu") return "菜单";
   if (path === "/vendor/queue") return "接单";
