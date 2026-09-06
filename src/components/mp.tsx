@@ -149,6 +149,7 @@ export function StallRow({
   category,
   fromYuan,
   queue,
+  rating,
   state,
   waitNote,
 }: {
@@ -159,6 +160,8 @@ export function StallRow({
   category: string;
   fromYuan?: number;
   queue?: string;
+  /** 4.8 · 12评，名单上顺手看一眼口碑。 */
+  rating?: string;
   state: string;
   waitNote?: string;
 }) {
@@ -171,7 +174,10 @@ export function StallRow({
           <h4>{name}</h4>
           <PlotChip no={plotNo} on={on} />
         </div>
-        <p className="stall-row-cat">{category}</p>
+        <p className="stall-row-cat">
+          {category}
+          {rating && <span className="row-stars">★ {rating}</span>}
+        </p>
         <div className="stall-row-foot">
           {on ? (
             <>

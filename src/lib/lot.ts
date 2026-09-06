@@ -1,4 +1,5 @@
-import type { LotPlot, Order, Stall, Venue, VenueFloor } from "./types";
+import { stallScore } from "./types";
+import type { LotPlot, Order, Review, Stall, Venue, VenueFloor } from "./types";
 
 export function formatSlotNo(slot: number) {
   if (!slot || slot < 1) return "—";
@@ -63,12 +64,26 @@ export function assignLotSlots<T extends { id: string; venueId: string; allotted
   });
 }
 
-export function claimPlots(stalls: Stall[], venue: Venue): Stall[] {
+/**
+ * The order stalls get to keep the plot they asked for. Customers' reviews come
+ * first — a stall people rate well holds its pitch, one that keeps disappointing
+ * them loses a contested plot to somebody better. Sign-up time only breaks ties,
+ * so being quick on the phone no longer beats being good at the counter.
+ */
+export function pickOrder(stalls: Stall[], reviews: Pick<Review, "stallId" | "stars" | "verified">[]) {
+  const score = new Map(stalls.map((row) => [row.id, stallScore(reviews as Review[], row.id)]));
+  return [...stalls].sort(
+    (a, b) => (score.get(b.id) ?? 0) - (score.get(a.id) ?? 0) || a.signedUpAt - b.signedUpAt,
+  );
+}
+
+export function claimPlots(stalls: Stall[], venue: Venue, reviews: Review[] = []): Stall[] {
   const plots = venue.floor?.plots ?? [];
   if (plots.length === 0) return assignLotSlots(stalls, venue.id, venue.slots);
-  const signed = stalls
-    .filter((s) => s.venueId === venue.id && s.status === "active" && s.signedUpToday)
-    .sort((a, b) => a.signedUpAt - b.signedUpAt);
+  const signed = pickOrder(
+    stalls.filter((s) => s.venueId === venue.id && s.status === "active" && s.signedUpToday),
+    reviews,
+  );
   const taken = new Map<string, string>();
   for (const row of signed) {
     const plot = plots.find((p) => p.id === row.lotPlotId);
@@ -116,13 +131,44 @@ export function tonightBooths(stalls: Stall[], floor?: VenueFloor) {
     .sort((a, b) => Number(a.slotNo) - Number(b.slotNo));
 }
 
+/**
+ * Which collected tickets this customer can still write up. One review per
+ * ticket: that is what keeps the average honest and stops a stall being buried
+ * or boosted by one person writing ten times.
+ */
+export function reviewableOrders(
+  orders: Pick<Order, "id" | "stallId" | "status">[],
+  reviews: Pick<Review, "orderId">[],
+  stallId?: string,
+) {
+  const written = new Set(reviews.map((row) => row.orderId).filter(Boolean));
+  return orders.filter(
+    (row) => row.status === "picked" && !written.has(row.id) && (!stallId || row.stallId === stallId),
+  );
+}
+
+/**
+ * A stall that cannot take mini-program orders never leaves a ticket, so its
+ * customers have to say so themselves — once per stall, and marked unverified.
+ */
+export function canSayAteHere(
+  stall: Pick<Stall, "id" | "licenseTier">,
+  reviews: Pick<Review, "stallId" | "orderId" | "consumerId">[],
+  consumerId: string,
+) {
+  if (stall.licenseTier === "ordering") return false;
+  return !reviews.some((row) => row.stallId === stall.id && !row.orderId && row.consumerId === consumerId);
+}
+
 export function canLeaveReview(
   stall: Pick<Stall, "id" | "licenseTier">,
-  orders: Pick<Order, "stallId" | "status">[],
+  orders: Pick<Order, "id" | "stallId" | "status">[],
   ateHere: boolean,
+  reviews: Pick<Review, "stallId" | "orderId" | "consumerId">[] = [],
+  consumerId = "",
 ) {
   if (stall.licenseTier === "ordering") {
-    return orders.some((row) => row.stallId === stall.id && row.status === "picked");
+    return reviewableOrders(orders, reviews as Pick<Review, "orderId">[], stall.id).length > 0;
   }
-  return ateHere;
+  return ateHere && canSayAteHere(stall, reviews, consumerId);
 }

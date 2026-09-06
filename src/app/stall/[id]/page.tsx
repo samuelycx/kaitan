@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Band, Btn, Card, CardHead, Cell, Empty, Page, PlotChip } from "@/components/mp";
 import { useStore } from "@/lib/store";
-import { canLeaveReview } from "@/lib/lot";
+import { canLeaveReview, canSayAteHere, reviewableOrders } from "@/lib/lot";
 import { arrivalStreak, stallQueue } from "@/lib/queue";
 import {
   boothState,
@@ -20,7 +20,7 @@ import {
 export default function StallPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { venues, stalls, dishes, reviews, orders, dayLog, tradingDate, placeOrder, addReview } = useStore();
+  const { venues, stalls, dishes, reviews, orders, dayLog, tradingDate, consumerId, placeOrder, addReview } = useStore();
   const stall = stalls.find((s) => s.id === id);
   const [qty, setQty] = useState<Record<string, number>>({});
   const [copied, setCopied] = useState(false);
@@ -44,7 +44,8 @@ export default function StallPage() {
 
   const state = boothState(stall);
   const canOrder = canTakeMiniOrder(stall);
-  const canReview = canLeaveReview(stall, orders, ateHere);
+  const myTicket = reviewableOrders(orders, reviews, stall.id)[0];
+  const canReview = canLeaveReview(stall, orders, ateHere, reviews, consumerId);
   const paused = stall.licenseTier === "ordering" && stall.orderingPaused;
   const { ahead, minutes } = stallQueue(orders, stall.id);
   const streak = arrivalStreak(dayLog, stall.id, tradingDate);
@@ -213,7 +214,7 @@ export default function StallPage() {
             className="space-y-2 px-3.5 py-3"
             onSubmit={(e) => {
               e.preventDefault();
-              addReview(stall.id, stars, note, ateHere);
+              addReview(stall.id, stars, note, myTicket?.id);
               setNote("");
             }}
           >
@@ -236,12 +237,14 @@ export default function StallPage() {
           </form>
         ) : stall.licenseTier === "ordering" ? (
           <Empty>取过餐再评。打开取餐票。</Empty>
-        ) : (
+        ) : canSayAteHere(stall, reviews, consumerId) ? (
           <div className="px-3.5 py-3">
             <Btn kind="ink" onClick={() => setAteHere(true)}>
               我到摊吃过了
             </Btn>
           </div>
+        ) : (
+          <Empty>你评过这摊了。</Empty>
         )}
         {reviews.filter((row) => row.stallId === stall.id).length === 0 ? (
           <Empty>还没人评。吃过再写。</Empty>
@@ -250,7 +253,10 @@ export default function StallPage() {
             .filter((row) => row.stallId === stall.id)
             .map((row) => (
               <Cell key={row.id} end={`${row.stars} 星`}>
-                <p>{row.nick}</p>
+                <p>
+                  {row.nick}
+                  {row.verified && <span className="verified-tag">取过餐</span>}
+                </p>
                 <p className="text-[13px] text-[var(--muted)]">{row.note}</p>
               </Cell>
             ))

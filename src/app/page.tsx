@@ -4,14 +4,14 @@ import { useState } from "react";
 import { Band, Btn, Card, Cell, Empty, FloorEntry, Page, StallRow } from "@/components/mp";
 import { useStore } from "@/lib/store";
 import { stallQueue } from "@/lib/queue";
-import { boothState, canTakeMiniOrder, stallCover, stallPayLabel, tonightBooths } from "@/lib/types";
+import { boothState, canTakeMiniOrder, stallCover, stallPayLabel, stallRating, tonightBooths } from "@/lib/types";
 
 /**
  * 今晚名单。分三段：已亮灯的能吃，备摊的报了名还没到，今晚不出的别白跑。
  * 排序就是这个顺序，所以顾客不用读状态字，从上往下看就行。
  */
 export default function Home() {
-  const { venues, stalls, dishes, orders, isSignupOpen } = useStore();
+  const { venues, stalls, dishes, orders, reviews, isSignupOpen } = useStore();
   const [copied, setCopied] = useState(false);
   const venue = venues[0];
   if (!venue) return <p>还没有经营点。</p>;
@@ -27,6 +27,7 @@ export default function Home() {
       const cheapest = menu.length > 0 ? Math.min(...menu.map((d) => d.priceYuan)) : undefined;
       const { ahead, minutes } = stallQueue(orders, stall.id);
       const state = boothState(stall);
+      const rating = stallRating(reviews, stall.id);
       return (
         <StallRow
           key={stall.id}
@@ -43,6 +44,7 @@ export default function Home() {
                 : "现在不用排"
               : stallPayLabel(stall)
           }
+          rating={rating.count > 0 ? `${rating.avg}` : undefined}
           state={state}
           waitNote={state === "waiting" ? `报了 ${slotNo} 位 · 人还没到` : "今晚已经收摊"}
         />

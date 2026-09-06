@@ -1629,3 +1629,18 @@ body {
   font-size: 11px;
   color: var(--lacquer);
 }
+
+/* 口碑：名单行上的星、点评里的「取过餐」小签。 */
+.row-stars {
+  margin-left: 6px;
+  color: #c23b22;
+  white-space: nowrap;
+}
+.verified-tag {
+  margin-left: 6px;
+  padding: 1px 5px;
+  border: 1px solid #c9b795;
+  border-radius: 3px;
+  font-size: 11px;
+  color: #6b5d4d;
+}

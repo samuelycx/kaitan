@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { Btn, Card, CardHead, Cell, Empty, LotMap, Page } from "@/components/mp";
-import { canLeaveReview } from "@/lib/lot";
+import { reviewableOrders } from "@/lib/lot";
 import { ordersAhead } from "@/lib/queue";
 import { useStore } from "@/lib/store";
 import { ORDER_STATUS, cstTime, dishPhoto, orderThumb, stallCover, tonightBooths } from "@/lib/types";
@@ -22,7 +22,7 @@ function pickupShare(order: {
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { venues, orders, dishes, stalls, addReview } = useStore();
+  const { venues, orders, dishes, stalls, reviews, addReview } = useStore();
   const [copied, setCopied] = useState(false);
   const [stars, setStars] = useState(5);
   const [note, setNote] = useState("");
@@ -135,14 +135,14 @@ export default function OrderDetailPage() {
           />
         </Card>
       )}
-      {stall && order.status === "picked" && canLeaveReview(stall, orders, false) && (
+      {stall && reviewableOrders(orders, reviews, stall.id).some((row) => row.id === order.id) && (
         <Card>
           <CardHead>取过了，评一句</CardHead>
           <form
             className="space-y-2 px-3.5 py-3"
             onSubmit={(e) => {
               e.preventDefault();
-              addReview(stall.id, stars, note, false);
+              addReview(stall.id, stars, note, order.id);
               setNote("");
             }}
           >

@@ -2,10 +2,10 @@
 
 import { Card, CardHead, Cell, Empty, Lead, LotMap, Page, Stats } from "@/components/mp";
 import { useOrgDesk } from "@/lib/use-org";
-import { BOOTH_STATE_LABEL, boothState, stallCover, tonightBooths } from "@/lib/types";
+import { BOOTH_STATE_LABEL, boothState, ratingLabel, stallCover, tonightBooths } from "@/lib/types";
 
 export default function OrgTodayPage() {
-  const { venue, allotted, openNow, notArrived, packedUp, signupOpen, waitlist, missed, noShows, vacant, dishes } =
+  const { venue, allotted, openNow, notArrived, packedUp, signupOpen, waitlist, missed, noShows, vacant, dishes, reviews } =
     useOrgDesk();
   if (!venue) return <p>还没有经营点。</p>;
   const booths = tonightBooths(allotted, venue.floor);
@@ -59,6 +59,7 @@ export default function OrgTodayPage() {
       </Card>
       <Card>
         <CardHead>顾客今晚会看到 · 只有已开摊的能点单</CardHead>
+        <p className="px-3.5 pb-1 text-[13px] text-[var(--muted)]">摊位先给口碑好的，同分再按报名先后。</p>
         {venue.closedToday ? (
           <Empty>停市，开摊里是空的。</Empty>
         ) : allotted.length === 0 ? (
@@ -71,7 +72,7 @@ export default function OrgTodayPage() {
               <Cell key={s.id} thumb={stallCover(s)} end={BOOTH_STATE_LABEL[boothState(s)]}>
                 <p>
                   {booth?.slotNo ? `${booth.slotNo} · ` : ""}
-                  {s.vendorName} · {s.category}
+                  {s.vendorName} · {s.category} · {ratingLabel(reviews, s.id)}
                 </p>
                 <p className="truncate text-[13px] text-[var(--muted)]">
                   {menu.length > 0 ? menu.map((d) => `${d.name} ${d.priceYuan}元`).join(" · ") : "菜单还没写"}
@@ -87,7 +88,7 @@ export default function OrgTodayPage() {
           {waitlist.map((s) => (
             <Cell key={s.id} thumb={stallCover(s)}>
               <p>{s.vendorName}</p>
-              <p className="text-[13px] text-[var(--muted)]">位满</p>
+              <p className="text-[13px] text-[var(--muted)]">位满 · {ratingLabel(reviews, s.id)}</p>
             </Cell>
           ))}
         </Card>

@@ -195,6 +195,10 @@ export type Review = {
   id: string;
   stallId: string;
   consumerId?: string;
+  /** The ticket this review is attached to. Absent means the customer said so themselves. */
+  orderId?: string;
+  /** True when a collected ticket backs it up, so the average can say how many are checkable. */
+  verified: boolean;
   stars: number;
   note: string;
   nick: string;
@@ -203,9 +207,27 @@ export type Review = {
 
 export function stallRating(reviews: Review[], stallId: string) {
   const rows = reviews.filter((row) => row.stallId === stallId);
-  if (rows.length === 0) return { avg: 0, count: 0 };
-  const avg = rows.reduce((sum, row) => sum + row.stars, 0) / rows.length;
-  return { avg: Math.round(avg * 10) / 10, count: rows.length };
+  if (rows.length === 0) return { avg: 0, count: 0, verified: 0 };
+  const avg = Math.round((rows.reduce((sum, row) => sum + row.stars, 0) / rows.length) * 10) / 10;
+  return { avg, count: rows.length, verified: rows.filter((row) => row.verified).length };
+}
+
+/**
+ * The number that decides who picks a plot first. A raw average lets one
+ * five-star review outrank a stall with fifty, and it would shut a new stall
+ * out of the market on its first night — so every stall starts held at 4.0 and
+ * only moves as reviews accumulate. Reviews backed by a collected ticket count
+ * double; anyone can claim they ate somewhere.
+ */
+export const RATING_BASELINE = 4;
+const BASELINE_WEIGHT = 6;
+
+export function stallScore(reviews: Review[], stallId: string) {
+  const rows = reviews.filter((row) => row.stallId === stallId);
+  const weight = (row: Review) => (row.verified ? 2 : 1);
+  const total = rows.reduce((sum, row) => sum + row.stars * weight(row), RATING_BASELINE * BASELINE_WEIGHT);
+  const count = rows.reduce((sum, row) => sum + weight(row), BASELINE_WEIGHT);
+  return Math.round((total / count) * 100) / 100;
 }
 
 export function ratingLabel(reviews: Review[], stallId: string) {

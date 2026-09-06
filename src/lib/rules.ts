@@ -1,6 +1,6 @@
 import { claimPlots, findPlot, plotFits } from "./lot";
 import { cstDate, isPhone, nextDate } from "./types";
-import type { DayRecord, OrderStatus, PlotPreference, Snapshot, Stall, TenancyStatus, Venue } from "./types";
+import type { DayRecord, OrderStatus, PlotPreference, Snapshot, Stall, Review, TenancyStatus, Venue } from "./types";
 
 /**
  * Pure snapshot transitions for the rules the business depends on: daily
@@ -11,12 +11,12 @@ import type { DayRecord, OrderStatus, PlotPreference, Snapshot, Stall, TenancySt
  * so callers can hand the result straight to a state setter.
  */
 
-function allocate(stalls: Stall[], venue: Venue): Stall[] {
-  return claimPlots(stalls, venue);
+function allocate(stalls: Stall[], venue: Venue, reviews: Review[] = []): Stall[] {
+  return claimPlots(stalls, venue, reviews);
 }
 
 function reallocate(s: Snapshot, venue: Venue, stalls: Stall[]): Snapshot {
-  return { ...s, stalls: allocate(stalls, venue) };
+  return { ...s, stalls: allocate(stalls, venue, s.reviews) };
 }
 
 function context(s: Snapshot, stallId: string) {
@@ -312,7 +312,7 @@ export function closeSignup(s: Snapshot, venueId: string): Snapshot {
   return {
     ...s,
     venues: s.venues.map((v) => (v.id === venueId ? { ...v, signupOpen: false } : v)),
-    stalls: allocate(s.stalls, venue),
+    stalls: allocate(s.stalls, venue, s.reviews),
   };
 }
 

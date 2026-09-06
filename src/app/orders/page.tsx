@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Band, Empty, Page, PlotChip } from "@/components/mp";
+import { reviewableOrders } from "@/lib/lot";
 import { ordersAhead } from "@/lib/queue";
 import { useStore } from "@/lib/store";
 import { ORDER_STATUS, orderThumb, cstDate } from "@/lib/types";
@@ -18,10 +19,12 @@ function dayLabel(date: string) {
  * 吃过的往下排成一列，每行右边留一个「再来一单」的口子。
  */
 export default function OrdersPage() {
-  const { orders, dishes, stalls } = useStore();
+  const { orders, dishes, stalls, reviews } = useStore();
   const [tab, setTab] = useState<"live" | "done">("live");
   const live = orders.filter((row) => row.status === "placed" || row.status === "ready");
   const done = orders.filter((row) => row.status === "picked" || row.status === "refunded");
+
+  const unwritten = new Set(reviewableOrders(orders, reviews).map((row) => row.id));
 
   const history = (
     <>
@@ -39,7 +42,9 @@ export default function OrdersPage() {
             </div>
             <div className="past-order-end">
               <p>{row.totalYuan} 元</p>
-              {stall && stall.allottedToday ? (
+              {unwritten.has(row.id) ? (
+                <Link href={`/orders/${row.id}`}>评一句</Link>
+              ) : stall && stall.allottedToday ? (
                 <Link href={`/stall/${stall.id}`}>再来一单</Link>
               ) : (
                 <small>{row.status === "refunded" ? "已退" : "今晚没出"}</small>

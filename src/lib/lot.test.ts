@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { assignLotSlots, canLeaveReview, claimPlots, formatSlotNo, nextVacantLot, plotFits, tonightBooths } from "./lot";
+import {
+  assignLotSlots,
+  canLeaveReview,
+  canSayAteHere,
+  claimPlots,
+  formatSlotNo,
+  nextVacantLot,
+  pickOrder,
+  plotFits,
+  reviewableOrders,
+  tonightBooths,
+} from "./lot";
+import { stallScore } from "./types";
+import type { Review } from "./types";
 import type { Venue } from "./types";
 
 function stall(partial: {
@@ -133,13 +146,96 @@ describe("claimPlots", () => {
 describe("canLeaveReview", () => {
   it("lets an ordering stall be reviewed only after pickup", () => {
     const shop = stall({ id: "s-lin", licenseTier: "ordering" });
-    expect(canLeaveReview(shop, [{ stallId: "s-lin", status: "placed" }], false)).toBe(false);
-    expect(canLeaveReview(shop, [{ stallId: "s-lin", status: "picked" }], false)).toBe(true);
+    expect(canLeaveReview(shop, [{ id: "o-1", stallId: "s-lin", status: "placed" }], false)).toBe(false);
+    expect(canLeaveReview(shop, [{ id: "o-1", stallId: "s-lin", status: "picked" }], false)).toBe(true);
   });
 
   it("lets a walk-up stall be reviewed after the eater says they ate", () => {
     const shop = stall({ id: "s-6", licenseTier: "display" });
     expect(canLeaveReview(shop, [], false)).toBe(false);
     expect(canLeaveReview(shop, [], true)).toBe(true);
+  });
+});
+
+function review(partial: { stallId: string; stars: number; verified?: boolean; orderId?: string; consumerId?: string }): Review {
+  return {
+    id: `r-${partial.stallId}-${partial.stars}-${partial.orderId ?? "x"}`,
+    stallId: partial.stallId,
+    stars: partial.stars,
+    note: "",
+    nick: "路过的人",
+    consumerId: partial.consumerId ?? "c-1",
+    orderId: partial.orderId,
+    verified: partial.verified ?? false,
+    at: 1,
+  };
+}
+
+describe("reviewableOrders", () => {
+  it("only offers collected tickets that have not been written up", () => {
+    const orders = [
+      { id: "o-1", stallId: "s-1", status: "picked" as const },
+      { id: "o-2", stallId: "s-1", status: "placed" as const },
+      { id: "o-3", stallId: "s-1", status: "picked" as const },
+    ];
+    const rows = reviewableOrders(orders, [review({ stallId: "s-1", stars: 5, orderId: "o-1" })], "s-1");
+    expect(rows.map((row) => row.id)).toEqual(["o-3"]);
+  });
+});
+
+describe("canSayAteHere", () => {
+  it("is open to a walk-up stall once, and never to one that issues tickets", () => {
+    const walkUp = stall({ id: "s-6", licenseTier: "display" });
+    expect(canSayAteHere(walkUp, [], "c-1")).toBe(true);
+    expect(canSayAteHere(walkUp, [review({ stallId: "s-6", stars: 4 })], "c-1")).toBe(false);
+    expect(canSayAteHere(walkUp, [review({ stallId: "s-6", stars: 4 })], "c-2")).toBe(true);
+    expect(canSayAteHere(stall({ id: "s-1", licenseTier: "ordering" }), [], "c-1")).toBe(false);
+  });
+});
+
+describe("stallScore", () => {
+  it("starts a new stall level with the rest and moves slowly", () => {
+    expect(stallScore([], "s-new")).toBe(4);
+    const one = stallScore([review({ stallId: "s-1", stars: 5 })], "s-1");
+    expect(one).toBeGreaterThan(4);
+    expect(one).toBeLessThan(4.2);
+  });
+
+  it("counts a ticket-backed word for more than a bare one", () => {
+    const bare = stallScore([review({ stallId: "s-1", stars: 1 })], "s-1");
+    const backed = stallScore([review({ stallId: "s-1", stars: 1, verified: true, orderId: "o-1" })], "s-1");
+    expect(backed).toBeLessThan(bare);
+  });
+});
+
+describe("pickOrder", () => {
+  it("puts the better-reviewed stall first, and keeps sign-up order on a tie", () => {
+    const rows = pickOrder(
+      [stall({ id: "late", signedUpAt: 9 }), stall({ id: "early", signedUpAt: 1 })],
+      [
+        review({ stallId: "late", stars: 5, verified: true, orderId: "o-1" }),
+        review({ stallId: "late", stars: 5, verified: true, orderId: "o-2" }),
+      ],
+    );
+    expect(rows.map((row) => row.id)).toEqual(["late", "early"]);
+    expect(pickOrder([stall({ id: "late", signedUpAt: 9 }), stall({ id: "early", signedUpAt: 1 })], []).map((r) => r.id)).toEqual([
+      "early",
+      "late",
+    ]);
+  });
+
+  it("hands a contested plot to the better-reviewed stall", () => {
+    const rows = claimPlots(
+      [stall({ id: "good", lotPlotId: "p01", signedUpAt: 9 }), stall({ id: "poor", lotPlotId: "p01", signedUpAt: 1 })],
+      floorVenue,
+      [
+        review({ stallId: "good", stars: 5, verified: true, orderId: "o-1" }),
+        review({ stallId: "good", stars: 5, verified: true, orderId: "o-2" }),
+        review({ stallId: "poor", stars: 1, verified: true, orderId: "o-3" }),
+        review({ stallId: "poor", stars: 1, verified: true, orderId: "o-4" }),
+      ],
+    );
+    expect(rows.find((s) => s.id === "good")?.allottedToday).toBe(true);
+    expect(rows.find((s) => s.id === "poor")?.allottedToday).toBe(false);
   });
 });

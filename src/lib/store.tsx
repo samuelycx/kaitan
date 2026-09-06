@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { canLeaveReview, claimPlots, formatSlotNo, plotByNo } from "./lot";
+import { canSayAteHere, claimPlots, formatSlotNo, plotByNo, reviewableOrders } from "./lot";
 import { canTakeMiniOrder } from "./types";
 import * as rules from "./rules";
 import { SEED } from "./seed";
@@ -35,8 +35,8 @@ function newId(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}-${idSeq.toString(36)}`;
 }
 
-function allocate(stalls: Stall[], venue: Venue): Stall[] {
-  return claimPlots(stalls, venue);
+function allocate(stalls: Stall[], venue: Venue, reviews: Review[] = []): Stall[] {
+  return claimPlots(stalls, venue, reviews);
 }
 
 type Store = Snapshot & {
@@ -77,7 +77,8 @@ type Store = Snapshot & {
   addDispute: (stallId: string, note: string) => void;
   /** Ask to be told when this stall lights up, or stop asking. */
   toggleFollow: (stallId: string) => void;
-  addReview: (stallId: string, stars: number, note: string, ateHere?: boolean) => void;
+  /** Write up a stall. Pass the ticket it is about; without one it counts as unverified. */
+  addReview: (stallId: string, stars: number, note: string, orderId?: string) => void;
   refundOrder: (orderId: string) => void;
 };
 
@@ -145,7 +146,7 @@ function load(): Snapshot {
               (row.lotSlot ? plotByNo(SEED.venues[0]?.floor, row.lotSlot)?.id || "" : ""),
           };
         });
-        return venues.reduce((rows, venue) => allocate(rows, { ...SEED.venues[0], ...venue, floor: venue.floor ?? SEED.venues[0]?.floor }), merged);
+        return venues.reduce((rows, venue) => allocate(rows, { ...SEED.venues[0], ...venue, floor: venue.floor ?? SEED.venues[0]?.floor }, parsed.reviews ?? SEED.reviews), merged);
       })(),
       dishes: (() => {
         const have = new Set(parsed.dishes.map((row) => row.id));
@@ -199,7 +200,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         setSnap((cur) => {
           const next = rules.reviewMany(cur, stallIds, status);
           return next.venues.reduce(
-            (acc, venue) => ({ ...acc, stalls: allocate(acc.stalls, venue) }),
+            (acc, venue) => ({ ...acc, stalls: allocate(acc.stalls, venue, next.reviews) }),
             next,
           );
         });
@@ -221,7 +222,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           const venue = s.venues.find((v) => v.id === stalls.find((row) => row.id === stallId)?.venueId);
           return {
             ...s,
-            stalls: venue ? allocate(stalls, venue) : stalls,
+            stalls: venue ? allocate(stalls, venue, s.reviews) : stalls,
           };
         });
       },
@@ -398,16 +399,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       markNoShow(stallId) {
         setSnap((cur) => rules.markNoShow(cur, stallId));
       },
-      addReview(stallId, stars, note, ateHere = false) {
+      addReview(stallId, stars, note, orderId) {
         setSnap((s) => {
           const stall = s.stalls.find((row) => row.id === stallId);
+          if (!stall) return s;
           const score = Math.min(5, Math.max(1, Math.round(stars)));
-          if (!stall || !canLeaveReview(stall, s.orders, ateHere)) return s;
+          const ticket = orderId
+            ? reviewableOrders(s.orders, s.reviews, stallId).find((row) => row.id === orderId)
+            : undefined;
+          if (orderId && !ticket) return s;
+          if (!orderId && !canSayAteHere(stall, s.reviews, s.consumerId)) return s;
           const row: Review = {
             id: newId("r"),
             stallId,
+            orderId: ticket?.id,
+            verified: Boolean(ticket),
             stars: score,
-            note: note.trim() || "到摊吃过。",
+            note: note.trim() || (ticket ? "取过餐。" : "到摊吃过。"),
             nick: s.consumerName,
             consumerId: s.consumerId,
             at: Date.now(),
